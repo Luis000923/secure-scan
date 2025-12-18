@@ -1,0 +1,123 @@
+{
+  "$schema": "https://raw.githubusercontent.com/secure-scan/secure-scan/main/schema.json",
+  "version": "1.0.0",
+  
+  "scan": {
+    "languages": [
+      "javascript",
+      "typescript",
+      "python",
+      "php",
+      "java",
+      "c",
+      "cpp",
+      "csharp",
+      "dockerfile",
+      "yaml",
+      "terraform"
+    ],
+    "exclude": [
+      "**/node_modules/**",
+      "**/vendor/**",
+      "**/venv/**",
+      "**/.venv/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/target/**",
+      "**/.git/**",
+      "**/coverage/**",
+      "**/__pycache__/**",
+      "**/*.min.js",
+      "**/*.min.css",
+      "**/package-lock.json",
+      "**/yarn.lock",
+      "**/composer.lock"
+    ],
+    "include": [],
+    "maxFileSize": 1048576,
+    "maxFiles": 10000,
+    "followSymlinks": false
+  },
+  
+  "rules": {
+    "enabled": true,
+    "categories": {
+      "vulnerability": true,
+      "malware": true
+    },
+    "severity": {
+      "critical": true,
+      "high": true,
+      "medium": true,
+      "low": true,
+      "info": false
+    },
+    "customRulesPath": null,
+    "disabledRules": []
+  },
+  
+  "ai": {
+    "enabled": false,
+    "provider": "openai",
+    "model": "gpt-5",
+    "apiKey": null,
+    "baseUrl": null,
+    "enhanceFindings": true,
+    "generateSummary": true,
+    "maxTokens": 4096,
+    "temperature": 0.1
+  },
+  
+  "output": {
+    "format": "html",
+    "path": "./secure-scan-report",
+    "filename": "security-report",
+    "includeSource": true,
+    "groupBy": "severity",
+    "sortBy": "severity"
+  },
+  
+  "scoring": {
+    "enabled": true,
+    "weights": {
+      "critical": 100,
+      "high": 50,
+      "medium": 20,
+      "low": 5,
+      "info": 1
+    },
+    "categoryMultipliers": {
+      "vulnerability": 1.0,
+      "malware": 1.5
+    },
+    "thresholds": {
+      "fail": 70,
+      "warn": 40
+    }
+  },
+  
+  "performance": {
+    "parallelism": 4,
+    "timeout": 300000,
+    "cacheEnabled": true,
+    "cachePath": ".secure-scan-cache"
+  },
+  
+  "integrations": {
+    "git": {
+      "enabled": true,
+      "scanOnlyChanged": false,
+      "baseBranch": "main"
+    },
+    "sarif": {
+      "enabled": false,
+      "path": "./results.sarif"
+    }
+  },
+  
+  "logging": {
+    "level": "info",
+    "file": null,
+    "colors": true
+  }
+}
