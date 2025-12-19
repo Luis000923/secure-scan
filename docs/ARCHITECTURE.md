@@ -2,7 +2,7 @@
 
 ## Visión General
 
-Secure-Scan es una herramienta empresarial de **Análisis Estático de Seguridad de Aplicaciones (SAST)** diseñada con una arquitectura modular y extensible.
+Secure-Scan es una herramienta de **Análisis Estático de Seguridad de Aplicaciones (SAST)** diseñada con una arquitectura modular y extensible.
 
 ## Diagrama de Arquitectura
 
