@@ -306,17 +306,13 @@ MIT License - Ver [LICENSE](LICENSE)
 4. Push a la rama (`git push origin feature/nueva-funcionalidad`)
 5. Abre un Pull Request
 
-## 📞 Soporte
-
-- 📧 Email: soporte@secure-scan.dev
-- 🐛 Issues: [GitHub Issues](https://github.com/your-org/secure-scan/issues)
 - 📖 Documentación: [docs/](docs/)
 
 ---
 
 **Desarrollado con ❤️ para la comunidad de seguridad**
 ## ATT: Luis000923
-## 🔐 Secure-Scan: Enterprise SAST Tool
+## 🔐 Secure-Scan
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
