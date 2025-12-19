@@ -4,7 +4,7 @@
 [![Versión Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
 [![Idioma](https://img.shields.io/badge/Idioma-Español%20%7C%20English-blue.svg)](#-idiomas)
 
-**Secure-Scan** es una herramienta empresarial de **Análisis Estático de Seguridad de Aplicaciones (SAST)** diseñada para detectar vulnerabilidades y código malicioso en repositorios de código sin ejecutarlos.
+**Secure-Scan** es una herramienta de **Análisis Estático de Seguridad de Aplicaciones (SAST)** diseñada para detectar vulnerabilidades y código malicioso en repositorios de código sin ejecutarlos.
 
 ## 🎯 Características Principales
 
