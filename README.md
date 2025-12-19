@@ -1,4 +1,4 @@
-# 🔐 Secure-Scan: Herramienta Empresarial SAST
+# 🔐 Secure-Scan
 
 [![Licencia: MIT](https://img.shields.io/badge/Licencia-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Versión Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
