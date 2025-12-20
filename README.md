@@ -116,7 +116,10 @@ secure-scan init
 secure-scan rules
 
 # Filtrar reglas por lenguaje
-secure-scan rules -l python
+secure-scan rules -l pytho
+
+#comando sugerido 
+secure-scan scan "ruta-proyecto-analizar" -v --ai --ai-provider local -o "ruta-resultado-escaneo\nombre-resultado"
 ```
 
 ## 🌍 Idiomas
