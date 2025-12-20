@@ -270,9 +270,6 @@ Modifica la sección `ai` en `secure-scan.config.json`:
 - [x] Fase 2: Integración de IA
 - [x] Fase 3: Soporte multiidioma (español/inglés)
 - [ ] Fase 4: Análisis de dependencias
-- [ ] Fase 5: Integración CI/CD (GitHub Actions, GitLab CI)
-- [ ] Fase 6: Análisis dinámico (DAST)
-- [ ] Fase 7: Dashboard web
 
 ## ⚠️ Advertencias de Seguridad
 
