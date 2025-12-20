@@ -94,17 +94,66 @@ npm link
 
 # Verificar instalación
 secure-scan --version
+```
 
-# Alternativa para Windows con Ollama (IA Local)OPCIÓNAL
-#LAS APIS KEYS DE IA DEBEN DE SER DE PAGA, A MENOS QUE USES IA LOCAL COMO OLLAMA(GPT,GEMINI)
+### Instalación de IA Local con Ollama (Opcional pero Recomendado)
+
+La IA local permite análisis avanzado **sin costos** y con **privacidad total**. Sigue estos pasos:
+
+#### Paso 1: Instalar Ollama
+
+**Windows:**
+```bash
+# Usando winget (recomendado)
 winget install Ollama.Ollama
 
-# Descargar un modelo optimizado para código
-ollama pull codellama:7b-instruc
+# O descarga el instalador desde https://ollama.ai
+```
 
-# Ejecutar el servidor Ollama (si no está en ejecución)
+**Linux:**
+```bash
+curl -fsSL https://ollama.ai/install.sh | sh
+```
+
+**macOS:**
+```bash
+brew install ollama
+```
+
+#### Paso 2: Descargar un modelo de IA
+
+```bash
+# CodeLlama 7B Instruct - Recomendado para análisis de código
+ollama pull codellama:7b-instruct
+
+# Alternativas según tu hardware:
+# - PC con 8GB+ RAM: codellama:7b-instruct (3.8 GB)
+# - PC con 16GB+ RAM: codellama:13b-instruct (7.4 GB)
+# - PC con poca RAM: llama3.2:3b (2 GB)
+```
+
+#### Paso 3: Verificar que Ollama esté funcionando
+
+```bash
+# Ollama se inicia automáticamente como servicio en Windows
+# Para verificar que funciona:
+ollama list
+
+# Si no está corriendo, iniciarlo manualmente:
 ollama serve
 ```
+
+#### Paso 4: Ejecutar escaneo con IA local
+
+```bash
+# Escaneo básico con IA local
+secure-scan scan ./mi-proyecto --ai --ai-provider local
+
+# Con reporte de salida
+secure-scan scan ./mi-proyecto --ai --ai-provider local -o ./reporte-seguridad
+```
+
+> **💡 Nota:** La primera ejecución puede tardar más mientras el modelo se carga en memoria. Las siguientes serán más rápidas.
 
 ### Opción 2: Usar con npx
 
@@ -355,6 +404,15 @@ Crea un archivo `secure-scan.config.json` en la raíz del proyecto:
 
 Secure-Scan soporta el uso de **modelos de IA locales** para análisis de seguridad sin depender de APIs externas.
 
+### Requisitos de Hardware
+
+| Modelo | RAM Mínima | GPU (Opcional) | Velocidad |
+|--------|------------|----------------|-----------|
+| `llama3.2:3b` | 4 GB | No necesaria | Muy rápida |
+| `codellama:7b-instruct` | 8 GB | 4 GB VRAM | Rápida |
+| `codellama:13b-instruct` | 16 GB | 8 GB VRAM | Moderada |
+| `deepseek-coder:6.7b` | 8 GB | 6 GB VRAM | Rápida |
+
 ### Configuración para IA Local
 
 Modifica la sección `ai` en `secure-scan.config.json`:
@@ -364,6 +422,7 @@ Modifica la sección `ai` en `secure-scan.config.json`:
   "ai": {
     "enabled": true,
     "provider": "local",
+    "model": "codellama:7b-instruct",
     "endpoint": "http://localhost:11434/api/generate",
     "enhanceFindings": true,
     "generateSummary": true,
