@@ -57,11 +57,11 @@
   },
   
   "ai": {
-    "enabled": false,
-    "provider": "openai",
-    "model": "gpt-5",
+    "enabled": true,
+    "provider": "local",
+    "model": "codellama:7b-instruct",
     "apiKey": null,
-    "baseUrl": null,
+    "endpoint": "http://localhost:11434/api/generate",
     "enhanceFindings": true,
     "generateSummary": true,
     "maxTokens": 4096,

@@ -1,7 +1,7 @@
 {
   "name": "secure-scan",
   "version": "1.0.0",
-  "description": "Enterprise Static Application Security Testing (SAST) Tool - Detect vulnerabilities and malicious code",
+  "description": "Herramienta SAST (Análisis Estático de Seguridad) - Detecta vulnerabilidades y código malicioso",
   "main": "dist/index.js",
   "bin": {
     "secure-scan": "./dist/cli/index.js"
@@ -25,11 +25,12 @@
     "code-analysis",
     "owasp",
     "cwe",
-    "enterprise"
+    "profesional"
   ],
-  "author": "Secure Scan Team",
+  "author": "Luis000923",
   "license": "MIT",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "chalk": "^4.1.2",
     "commander": "^11.1.0",
     "glob": "^10.3.10",

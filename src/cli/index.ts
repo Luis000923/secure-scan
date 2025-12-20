@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Secure-Scan CLI
- * Enterprise Static Application Security Testing Tool
+ * Herramienta de Análisis Estático de Seguridad de Aplicaciones
  */
 
 import { Command } from 'commander';
@@ -14,20 +14,20 @@ import { SecurityScanner } from '../core/securityScanner';
 import { ScanConfig, Severity, SupportedLanguage } from '../types';
 import { setLogLevel } from '../utils/logger';
 
-// Package info
+// Información del paquete
 const packageJson = {
   name: 'secure-scan',
   version: '1.0.0',
-  description: 'Enterprise SAST Tool - Detect vulnerabilities and malicious code'
+  description: 'Herramienta SAST - Detecta vulnerabilidades y código malicioso'
 };
 
-// Create CLI program
+// Crear programa CLI
 const program = new Command();
 
 program
   .name('secure-scan')
   .version(packageJson.version)
-  .description(chalk.cyan('🔐 Secure-Scan - Enterprise Static Application Security Testing Tool'));
+  .description(chalk.cyan('🔐 Secure-Scan - Herramienta de Análisis Estático de Seguridad'));
 
 /**
  * Scan command
@@ -40,9 +40,10 @@ program
   .option('-e, --exclude <patterns>', 'Patrones a excluir separados por coma')
   .option('--min-severity <level>', 'Severidad mínima a reportar (info, low, medium, high, critical)', 'info')
   .option('--ai', 'Habilitar análisis con IA')
-  .option('--api-key <key>', 'API key para el proveedor de IA')
-  .option('--ai-provider <provider>', 'Proveedor de IA (openai, anthropic, local)', 'openai')
-  .option('--ai-model <model>', 'Modelo de IA a usar', 'gpt-4')
+  .option('--api-key <key>', 'API key para el proveedor de IA (auto-detecta OpenAI, Anthropic, Google)')
+  .option('--ai-provider <provider>', 'Proveedor de IA (openai, anthropic, google, gemini, local, auto)', 'auto')
+  .option('--ai-model <model>', 'Modelo de IA a usar (gpt-4o, gpt-4, gpt-3.5-turbo, claude-3-sonnet, gemini-1.5-flash, etc.)')
+  .option('--ai-endpoint <url>', 'URL del endpoint para IA local (default: http://localhost:11434/api/generate)')
   .option('-v, --verbose', 'Mostrar salida detallada')
   .option('--json', 'Mostrar resultados como JSON en stdout')
   .option('--max-file-size <bytes>', 'Tamaño máximo de archivo a escanear (en bytes)', '5242880')
@@ -84,6 +85,10 @@ program
       const reportLang = options.lang === 'en' ? 'en' : 'es';
 
       // Build config
+      // Default endpoint for local AI (Ollama)
+      const defaultLocalEndpoint = 'http://localhost:11434/api/generate';
+      const defaultLocalModel = 'codellama:7b-instruct';
+      
       const config: ScanConfig = {
         projectPath: resolvedPath,
         outputPath: options.output,
@@ -97,7 +102,8 @@ program
         aiConfig: options.ai ? {
           provider: options.aiProvider,
           apiKey: options.apiKey || process.env.OPENAI_API_KEY,
-          model: options.aiModel
+          model: options.aiModel || (options.aiProvider === 'local' ? defaultLocalModel : undefined),
+          endpoint: options.aiEndpoint || (options.aiProvider === 'local' ? defaultLocalEndpoint : undefined)
         } : undefined
       };
 
@@ -236,23 +242,23 @@ program
   });
 
 /**
- * Version command
+ * Comando de versión
  */
 program
   .command('version')
   .description('Mostrar información de versión')
   .action(() => {
     console.log(chalk.cyan(`\n🔐 Secure-Scan v${packageJson.version}`));
-    console.log(chalk.gray('Herramienta Empresarial de Análisis Estático de Seguridad (SAST)\n'));
+    console.log(chalk.gray('Herramienta de Análisis Estático de Seguridad (SAST)\n'));
   });
 
-// Parse arguments
+// Procesar argumentos
 program.parse();
 
-// Show help if no command
+// Mostrar ayuda si no hay comando
 if (process.argv.length === 2) {
   console.log(chalk.cyan(`
-  🔐 Secure-Scan - Herramienta Empresarial SAST
+  🔐 Secure-Scan - Herramienta SAST
   
   Detecta vulnerabilidades y código malicioso en tus proyectos.
   

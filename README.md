@@ -1,21 +1,46 @@
-# 🔐 Secure-Scan: Herramienta Empresarial SAST
+# 🔐 Secure-Scan: Herramienta SAST Profesional
 
 [![Licencia: MIT](https://img.shields.io/badge/Licencia-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Versión Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
 [![Idioma](https://img.shields.io/badge/Idioma-Español%20%7C%20English-blue.svg)](#-idiomas)
 
-**Secure-Scan** es una herramienta empresarial de **Análisis Estático de Seguridad de Aplicaciones (SAST)** diseñada para detectar vulnerabilidades y código malicioso en repositorios de código sin ejecutarlos.
+**Secure-Scan** es una herramienta profesional de **Análisis Estático de Seguridad de Aplicaciones (SAST)** diseñada para detectar vulnerabilidades y código malicioso en repositorios de código sin ejecutarlos.
 
 ## 🎯 Características Principales
 
+### 🔍 Análisis de Código Fuente
 - ✅ **Análisis Estático Puro** - Sin ejecución, compilación ni interpretación de código
-- 🔍 **Detección de Vulnerabilidades** - SQL Injection, XSS, CSRF, Command Injection, etc.
-- 🦠 **Detección de Malware** - Backdoors, keyloggers, cryptominers, payloads ocultos
-- 🌐 **Multi-lenguaje** - JavaScript, Python, PHP, Java, C/C++, C#
+- 🔍 **Detección de Vulnerabilidades** - SQL Injection, XSS, CSRF, Command Injection, Path Traversal, etc.
+- 🦠 **Detección de Malware** - Backdoors, keyloggers, cryptominers, web shells, payloads ocultos
+- 🌐 **Multi-lenguaje** - JavaScript, Python, PHP, Java, C/C++, C#, IaC (Docker, Terraform, Kubernetes)
+
+### 📦 Análisis de Composición de Software (SCA)
+- 📋 **Análisis de Manifiestos** - package.json, requirements.txt, composer.json, pom.xml, etc.
+- 🔓 **Detección de CVEs** - Vulnerabilidades conocidas en dependencias
+- ⚠️ **Typosquatting** - Detecta paquetes maliciosos con nombres similares
+- 🔐 **Análisis de Lock Files** - package-lock.json, yarn.lock, composer.lock, Pipfile.lock
+
+### 🔬 Escaneo de Dependencias Instaladas (NUEVO)
+- 📂 **Escaneo de node_modules** - Análisis profundo de paquetes npm/yarn instalados
+- 🐍 **Escaneo de venv/site-packages** - Paquetes Python instalados
+- 🐘 **Escaneo de vendor** - Dependencias PHP Composer
+- 🦠 **Detección de Malware en Dependencias**:
+  - 🚪 Backdoors (reverse shells, conexiones C2, robo de SSH keys)
+  - ⛏️ Cryptominers (minería de criptomonedas oculta)
+  - 🔓 Data Stealers (robo de credenciales, variables de entorno, tokens)
+  - 📥 Malicious Loaders (descarga de payloads remotos)
+  - 🔐 Código Ofuscado (base64 eval, hex encoding, anti-análisis)
+  - 📤 Exfiltración de Datos (DNS tunneling, HTTP POST de datos)
+  - 🛡️ Técnicas Anti-Análisis (detección de debuggers, sandbox evasion)
+- ✅ **Verificación de Integridad** - Compara versiones instaladas vs lock files
+- ⚡ **Análisis de Post-Install Scripts** - Detecta scripts maliciosos en hooks
+
+### 📊 Reportes y Estándares
 - 📊 **Reportes HTML Profesionales** - Estilo auditoría de seguridad
-- 🤖 **IA Integrada** - Análisis inteligente de patrones complejos
+- 🤖 **IA Integrada** - Análisis inteligente con modelos locales o en la nube
 - 📋 **Mapeo a Estándares** - OWASP Top 10, CWE, MITRE ATT&CK, SANS Top 25
 - 🌍 **Multiidioma** - Reportes en español (por defecto) o inglés
+- 📈 **Puntuación de Riesgo** - Score 0-100 basado en severidad y cantidad de hallazgos
 
 ## 🏗️ Arquitectura
 
@@ -35,6 +60,11 @@ secure-scan/
 │   │   ├── c-cpp/
 │   │   ├── csharp/
 │   │   └── iac/                # Infraestructura como Código
+│   ├── dependencies/           # Análisis de Dependencias (SCA)
+│   │   ├── parsers/            # Parsers por ecosistema (npm, pip, composer, etc.)
+│   │   ├── detectors/          # Detectores de vulnerabilidades
+│   │   ├── database/           # Base de datos CVE y paquetes maliciosos
+│   │   └── installed/          # Escáner de dependencias instaladas (malware)
 │   ├── rules/                  # Reglas de detección
 │   │   ├── vulnerabilities/
 │   │   └── malware/
@@ -64,6 +94,16 @@ npm link
 
 # Verificar instalación
 secure-scan --version
+
+# Alternativa para Windows con Ollama (IA Local)OPCIÓNAL
+#LAS APIS KEYS DE IA DEBEN DE SER DE PAGA, A MENOS QUE USES IA LOCAL COMO OLLAMA(GPT,GEMINI)
+winget install Ollama.Ollama
+
+# Descargar un modelo optimizado para código
+ollama pull codellama:7b-instruc
+
+# Ejecutar el servidor Ollama (si no está en ejecución)
+ollama serve
 ```
 
 ### Opción 2: Usar con npx
@@ -113,6 +153,69 @@ secure-scan scan ./proyecto --lang en
 secure-scan scan ./proyecto --lang es
 ```
 
+### Combinación de Opciones
+
+Puedes combinar múltiples opciones en un solo comando:
+
+```bash
+# Escaneo completo con IA, verbose y reporte personalizado
+secure-scan scan ./proyecto -v --ai --api-key "TU_API_KEY" -o "./reporte-seguridad"
+
+# Escaneo con IA local (Ollama), lenguajes específicos y reporte en inglés
+secure-scan scan ./proyecto --ai --ai-provider local -o "./security-report" --lang en --languages javascript,python
+
+# Escaneo rápido solo críticos con salida JSON
+secure-scan scan ./proyecto --min-severity critical --json
+
+# Escaneo completo excluyendo carpetas
+secure-scan scan ./proyecto -v --exclude "tests,docs,examples" -o "./audit-report"
+```
+
+### Referencia de Opciones
+
+| Opción | Alias | Descripción | Ejemplo |
+|--------|-------|-------------|---------|
+| `--output` | `-o` | Ruta del reporte HTML | `-o ./reporte` |
+| `--verbose` | `-v` | Salida detallada | `-v` |
+| `--ai` | - | Habilitar análisis IA | `--ai` |
+| `--api-key` | - | API key (auto-detecta proveedor) | `--api-key "sk-..."` |
+| `--ai-provider` | - | Proveedor IA (openai, anthropic, google, gemini, local, auto) | `--ai-provider google` |
+| `--ai-model` | - | Modelo de IA | `--ai-model gpt-4o` |
+| `--languages` | `-l` | Lenguajes a escanear | `--languages js,py` |
+| `--exclude` | `-e` | Patrones a excluir | `--exclude "test,docs"` |
+| `--min-severity` | - | Severidad mínima | `--min-severity high` |
+| `--lang` | - | Idioma del reporte (es/en) | `--lang en` |
+| `--json` | - | Salida en formato JSON | `--json` |
+| `--max-file-size` | - | Tamaño máximo de archivo | `--max-file-size 10485760` |
+
+### Proveedores de IA Soportados
+
+La herramienta **auto-detecta el proveedor** basándose en el formato de tu API key:
+
+| Proveedor | Prefijo API Key | Modelos Disponibles |
+|-----------|-----------------|---------------------|
+| **OpenAI** | `sk-` o `sk-proj-` | `gpt-4o`, `gpt-4-turbo`, `gpt-4`, `gpt-3.5-turbo`, `o1-preview`, `o1-mini` |
+| **Anthropic** | `sk-ant-` | `claude-3-opus`, `claude-3-sonnet`, `claude-3-haiku` |
+| **Google AI** | `AIzaSy` | `gemini-1.5-pro`, `gemini-1.5-flash`, `gemini-pro` |
+| **Local** | N/A | Cualquier modelo via Ollama, LM Studio, etc. |
+
+```bash
+# OpenAI (auto-detectado)
+secure-scan scan ./proyecto --ai --api-key "sk-proj-abc123..."
+
+# Google Gemini (auto-detectado)
+secure-scan scan ./proyecto --ai --api-key "AIzaSyAbc123..."
+
+# Anthropic Claude (auto-detectado)
+secure-scan scan ./proyecto --ai --api-key "sk-ant-abc123..."
+
+# Especificar modelo manualmente
+secure-scan scan ./proyecto --ai --api-key "sk-..." --ai-model gpt-4o
+
+# IA Local con Ollama (sin API key)
+secure-scan scan ./proyecto --ai --ai-provider local
+```
+
 ### Comandos Adicionales
 
 ```bash
@@ -131,6 +234,42 @@ secure-scan rules
 # Filtrar reglas por lenguaje
 secure-scan rules -l python
 ```
+
+## 🦠 Detección de Malware en Dependencias
+
+Secure-Scan escanea las dependencias instaladas en busca de código malicioso. Actualmente detecta **17 patrones de malware**:
+
+### Categorías de Malware Detectado
+
+| Categoría | Descripción | Ejemplos |
+|-----------|-------------|----------|
+| 🚪 **Backdoors** | Acceso remoto no autorizado | Reverse shells, conexiones C2, robo de SSH keys |
+| ⛏️ **Cryptominers** | Minería de criptomonedas | APIs de Stratum, CoinHive, MoneroOcean |
+| 🔓 **Data Stealers** | Robo de información | Credenciales, tokens, variables de entorno |
+| 📥 **Loaders** | Descarga de payloads | eval(require('http').get), dynamic imports |
+| 🔐 **Ofuscación** | Código oculto | Base64 + eval, hex encoding, char codes |
+| 📤 **Exfiltración** | Envío de datos | DNS tunneling, HTTP POST, WebSockets |
+| 🛡️ **Anti-Análisis** | Evasión de detección | Anti-debug, sandbox detection |
+| 📁 **File System** | Acceso sospechoso | /etc/passwd, ~/.ssh, credential stores |
+
+### Directorios Escaneados
+
+```
+📂 node_modules/      → Paquetes npm/yarn
+📂 vendor/            → Dependencias PHP Composer  
+📂 venv/              → Entornos virtuales Python
+📂 site-packages/     → Paquetes Python globales
+📂 .venv/             → Entornos virtuales alternativos
+```
+
+### Verificación de Integridad
+
+El escáner también verifica que las versiones instaladas coincidan con las declaradas en los lock files:
+
+- ✅ `package-lock.json` vs `node_modules/*/package.json`
+- ✅ `yarn.lock` vs `node_modules/*/package.json`
+- ✅ `composer.lock` vs `vendor/*/composer.json`
+- ✅ `Pipfile.lock` vs `venv/lib/python*/site-packages/`
 
 ## 🌍 Idiomas
 
@@ -161,12 +300,24 @@ secure-scan scan ./proyecto -o report --lang en
 
 ## 🛡️ Estándares de Seguridad
 
-Todos los hallazgos se mapean a:
+Todos los hallazgos se mapean a estándares reconocidos:
 
-- **OWASP Top 10** - Open Web Application Security Project
-- **CWE** - Common Weakness Enumeration (Enumeración de Debilidades Comunes)
-- **MITRE ATT&CK** - Tácticas y Técnicas de Atacantes
-- **SANS Top 25** - Errores de Software Más Peligrosos
+| Estándar | Descripción | Uso |
+|----------|-------------|-----|
+| **OWASP Top 10** | Top 10 riesgos de seguridad web | Vulnerabilidades web |
+| **CWE** | Common Weakness Enumeration | Debilidades de código |
+| **MITRE ATT&CK** | Tácticas y Técnicas de Atacantes | Detección de malware |
+| **SANS Top 25** | Errores de Software Más Peligrosos | Priorización |
+
+### Ejemplos de Mapeo
+
+| Hallazgo | CWE | OWASP | MITRE ATT&CK |
+|----------|-----|-------|--------------|
+| SQL Injection | CWE-89 | A03:2021 | T1190 |
+| XSS | CWE-79 | A03:2021 | T1059.007 |
+| Reverse Shell | CWE-506 | - | T1059, T1571 |
+| Cryptominer | CWE-400 | - | T1496 |
+| Data Exfiltration | CWE-200 | - | T1041 |
 
 ## 🔧 Configuración
 
@@ -279,13 +430,19 @@ Modifica la sección `ai` en `secure-scan.config.json`:
 
 ## 📈 Hoja de Ruta
 
-- [x] Fase 1: Análisis estático básico
-- [x] Fase 2: Integración de IA
-- [x] Fase 3: Soporte multiidioma (español/inglés)
-- [ ] Fase 4: Análisis de dependencias
-- [ ] Fase 5: Integración CI/CD (GitHub Actions, GitLab CI)
+- [x] Fase 1: Análisis estático básico (JavaScript, Python, PHP, Java, C/C++, C#)
+- [x] Fase 2: Integración de IA (OpenAI, Anthropic, modelos locales con Ollama)
+- [x] Fase 3: Soporte multiidioma (reportes en español/inglés)
+- [x] Fase 4: Análisis de dependencias (SCA)
+  - [x] Parsers para 6 ecosistemas (npm, pip, composer, maven, nuget, go)
+  - [x] Detección de CVEs y vulnerabilidades conocidas
+  - [x] Detección de typosquatting
+  - [x] **Escaneo de dependencias instaladas con detección de malware**
+  - [x] **17 patrones de malware (backdoors, cryptominers, stealers, etc.)**
+  - [x] **Verificación de integridad (lock files vs instalados)**
+- [ ] Fase 5: Integración CI/CD (GitHub Actions, GitLab CI, Azure DevOps)
 - [ ] Fase 6: Análisis dinámico (DAST)
-- [ ] Fase 7: Dashboard web
+- [ ] Fase 7: Dashboard web en tiempo real
 
 ## ⚠️ Advertencias de Seguridad
 
@@ -293,6 +450,34 @@ Modifica la sección `ai` en `secure-scan.config.json`:
 - Diseñada exclusivamente para **auditoría defensiva**
 - No genera ni contiene malware funcional
 - Uso responsable y ético únicamente
+
+## 💻 Ejemplo de Salida
+
+```
+🔐 Secure-Scan v2.0.0
+
+📂 Escaneando: ./mi-proyecto
+🔍 Archivos analizados: 156
+📏 Líneas de código: 24,853
+⏱️  Tiempo: 2.34s
+
+📊 Resultados del Escaneo:
+┌──────────────────────────────────────────────────────────────┐
+│  🔴 Crítico: 5    │  🟠 Alto: 12    │  🟡 Medio: 23         │
+│  🟢 Bajo: 8       │  🔵 Info: 3     │  Total: 51            │
+└──────────────────────────────────────────────────────────────┘
+
+📦 Dependencias Analizadas:
+┌──────────────────────────────────────────────────────────────┐
+│  📋 Manifiestos: 3      │  📦 Paquetes: 847               │
+│  🔓 CVEs: 12            │  🦠 Malware: 0                   │
+│  ⚠️  Typosquatting: 1   │  ✅ Integridad: OK              │
+└──────────────────────────────────────────────────────────────┘
+
+📈 Puntuación de Riesgo: 72/100 (Alto)
+
+📄 Reporte generado: ./security-report.html
+```
 
 ## 📄 Licencia
 
@@ -315,9 +500,6 @@ MIT License - Ver [LICENSE](LICENSE)
 ---
 
 **Desarrollado con ❤️ para la comunidad de seguridad**
-## ATT: Luis000923
-## 🔐 Secure-Scan: Enterprise SAST Tool
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
-[![Language](https://img.shields.io/badge/Language-Spanish%20%7C%20English-blue.svg)](#-languages)
+---
+**Autor:** Luis000923

@@ -1,6 +1,6 @@
 /**
- * Logger Utility
- * Winston-based logging for enterprise environments
+ * Utilidad de Logging
+ * Registro basado en Winston para entornos de producción
  */
 
 import winston from 'winston';
@@ -74,11 +74,11 @@ export function setLogLevel(level: string): void {
 }
 
 /**
- * Log scan start
+ * Registrar inicio de escaneo
  */
 export function logScanStart(projectPath: string): void {
   logger.info(chalk.cyan('═'.repeat(60)));
-  logger.info(chalk.cyan.bold('🔐 Secure-Scan - Enterprise SAST Tool'));
+  logger.info(chalk.cyan.bold('🔐 Secure-Scan - Herramienta SAST'));
   logger.info(chalk.cyan('═'.repeat(60)));
   logger.info(`📁 Scanning project: ${chalk.yellow(projectPath)}`);
   logger.info(chalk.gray('─'.repeat(60)));

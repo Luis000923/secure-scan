@@ -1,15 +1,16 @@
-# Dependencies
+# Dependencias
 node_modules/
 package-lock.json
 yarn.lock
 
-# Build output
+# Salida de compilación
 dist/
 build/
 *.js
 *.d.ts
 *.js.map
 !src/**/*.js
+!test-samples/**/*.js
 
 # IDE
 .idea/
@@ -18,7 +19,7 @@ build/
 *.swo
 *~
 
-# OS
+# Sistema Operativo
 .DS_Store
 Thumbs.db
 
@@ -29,7 +30,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Test coverage
+# Cobertura de tests
 coverage/
 .nyc_output/
 
@@ -38,24 +39,42 @@ coverage/
 .secure-scan-cache/
 .eslintcache
 
-# Reports (generated)
+# Reportes generados
 secure-scan-report/
 *.sarif
+prueba_ia-local*
+*-report.html
 
-# Environment variables
+# Variables de entorno
 .env
 .env.local
 .env.*.local
 
-# Temporary files
+# Archivos temporales
 tmp/
 temp/
 *.tmp
 
-# Secrets (should never be committed)
+# Secretos (nunca deben subirse)
 *.pem
 *.key
 *.p12
 *.pfx
 secrets.json
 credentials.json
+
+# Archivos personales
+*.personal.*
+notas-personales/
+mis-pruebas/
+
+# Archivos de test-samples generados (mantener los de prueba)
+test-samples/obj/
+test-samples/bin/
+test-samples/*.nuget.*
+
+# Archivos de solución de Visual Studio (opcional)
+*.suo
+*.user
+*.userosscache
+*.sln.docstates

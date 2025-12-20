@@ -1,10 +1,10 @@
 /**
- * Core Types for Secure-Scan SAST Tool
- * Enterprise-grade type definitions
+ * Tipos principales para Secure-Scan SAST
+ * Definiciones de tipos para análisis de seguridad
  */
 
 /**
- * Supported programming languages for analysis
+ * Lenguajes de programación soportados para análisis
  */
 export type SupportedLanguage = 
   | 'javascript'
@@ -264,8 +264,8 @@ export interface ScanConfig {
  * AI configuration
  */
 export interface AIConfig {
-  /** AI provider */
-  provider: 'openai' | 'anthropic' | 'local';
+  /** AI provider (auto-detected if not specified) */
+  provider: 'openai' | 'anthropic' | 'google' | 'gemini' | 'local' | 'auto';
   /** API key */
   apiKey?: string;
   /** Model to use */

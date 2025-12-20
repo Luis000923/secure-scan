@@ -654,7 +654,7 @@ export class HtmlReportGenerator implements ReportGenerator {
   </main>
 
   <footer>
-    <p>{{t.generatedBy}} <strong>Secure-Scan</strong> - Enterprise SAST Tool</p>
+    <p>{{t.generatedBy}} <strong>Secure-Scan</strong> - Herramienta SAST</p>
     <p>© {{currentYear}} - {{t.securityReport}}</p>
   </footer>
 

@@ -2,7 +2,7 @@
 
 ## Visión General
 
-Secure-Scan es una herramienta empresarial de **Análisis Estático de Seguridad de Aplicaciones (SAST)** diseñada con una arquitectura modular y extensible.
+Secure-Scan es una herramienta profesional de **Análisis Estático de Seguridad de Aplicaciones (SAST)** diseñada con una arquitectura modular y extensible.
 
 ## Diagrama de Arquitectura
 
@@ -298,17 +298,23 @@ export class NewLanguageAnalyzer extends BaseAnalyzer {
 - Multi-lenguaje
 - CLI avanzado
 
-### Fase 3 (Futuro)
+### Fase 3 ✅
 - Análisis AST
-- Análisis de dependencias
-- Integración CI/CD
+- Análisis de IaC (Dockerfile, YAML, Terraform)
+- Detección de malware
 
-### Fase 4 (Futuro)
+### Fase 4 ✅
+- Análisis de dependencias (SCA)
+- Software Composition Analysis
+- Detección de CVEs, typosquatting, paquetes maliciosos
+- Soporte para npm, pip, composer, maven, nuget, vcpkg
+
+### Fase 5 (Futuro)
 - Dashboard web
 - API REST
 - Multi-tenant SaaS
 
-### Fase 5 (Futuro)
+### Fase 6 (Futuro)
 - DAST (análisis dinámico)
 - IAST (instrumentación)
 - RASP (protección runtime)
