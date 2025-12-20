@@ -66,19 +66,6 @@ npm link
 secure-scan --version
 ```
 
-### Opción 2: Usar con npx
-
-```bash
-# Ejecutar directamente sin instalar
-npx secure-scan scan ./mi-proyecto
-```
-
-### Opción 3: Instalación desde npm (próximamente)
-
-```bash
-npm install -g secure-scan
-```
-
 ## 📖 Uso
 ### VISO MODIFICAR EL ARCHIVO secure-scan.config.json PARA CONFIGURAR LA HERRAMIENTA SEGÚN TUS NECESIDADES.
 ### Escaneo Básico
