@@ -3,8 +3,8 @@
  * Calculates risk scores and severity levels for scan results
  */
 
-import { Finding, Severity, ScanResult, FindingCategory } from '../../types';
-import { severityToNumber } from '../../utils';
+import { Finding, Severity, ScanResult, FindingCategory } from '../../../types';
+import { severityToNumber } from '../../../utils';
 
 /**
  * Risk weights for different factors

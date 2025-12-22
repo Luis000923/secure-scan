@@ -13,16 +13,16 @@ import {
   ScanStats,
   Severity,
   FindingCategory
-} from '../types';
-import { FileScanner } from '../core/scanner';
-import { RuleEngine } from '../core/engine';
-import { RiskScoringEngine } from '../core/scoring';
-import { getAllRules, getEnabledRules } from '../rules';
-import { getAllAnalyzers, initializeAnalyzers, cleanupAnalyzers, getAnalyzerForLanguage } from '../analyzers';
-import { AIAnalyzer } from '../ai';
-import { HtmlReportGenerator } from '../reports';
-import { generateId, isHigherOrEqualSeverity } from '../utils';
-import { logger, logScanStart, logScanComplete, logFinding } from '../utils/logger';
+} from '../../types';
+import { FileScanner } from './scanner';
+import { RuleEngine } from './engine';
+import { RiskScoringEngine } from './scoring';
+import { getAllRules, getEnabledRules } from '../../rules';
+import { getAllAnalyzers, initializeAnalyzers, cleanupAnalyzers, getAnalyzerForLanguage } from '../';
+import { AIAnalyzer } from '../../ai';
+import { HtmlReportGenerator } from '../../reports';
+import { generateId, isHigherOrEqualSeverity } from '../../utils';
+import { logger, logScanStart, logScanComplete, logFinding } from '../../utils/logger';
 
 /**
  * Security Scanner Class

@@ -2,7 +2,7 @@
 
 ## Visión General
 
-Secure-Scan es una herramienta profesional de **Análisis Estático de Seguridad de Aplicaciones (SAST)** diseñada con una arquitectura modular y extensible.
+Secure-Scan es una herramienta profesional de **Análisis Estático de Seguridad de Aplicaciones (SAST)** diseñada con una arquitectura modular, extensible y de nivel empresarial.
 
 ## Diagrama de Arquitectura
 
@@ -30,8 +30,8 @@ Secure-Scan es una herramienta profesional de **Análisis Estático de Seguridad
 │   File Scanner   │ │ Rule Engine  │ │  AI Analyzer     │
 │                  │ │              │ │                  │
 │ - Escanea dirs   │ │ - Patterns   │ │ - OpenAI/Claude  │
-│ - Detecta langs  │ │ - Regex      │ │ - Local models   │
-│ - Lee archivos   │ │ - AST        │ │ - Enhancement    │
+│ - Detecta langs  │ │ - Regex      │ │ - Modelos locales│
+│ - Lee archivos   │ │ - AST        │ │ - Mejora reglas  │
 └──────────────────┘ └──────────────┘ └──────────────────┘
            │                │                │
            └────────────────┴────────────────┘
@@ -80,7 +80,7 @@ Punto de entrada de la aplicación. Maneja:
 - `init` - Crea archivo de configuración
 - `rules` - Lista reglas disponibles
 
-### 2. File Scanner (`src/core/scanner/`)
+### 2. File Scanner (`src/analyzers/core/scanner/`)
 
 Responsable de:
 - Escanear directorios recursivamente
@@ -89,7 +89,7 @@ Responsable de:
 - Filtrar por patrones de exclusión
 - Calcular hashes de archivos
 
-### 3. Rule Engine (`src/core/engine/`)
+### 3. Rule Engine (`src/analyzers/core/engine/`)
 
 Motor de reglas que:
 - Carga reglas de detección
@@ -120,7 +120,7 @@ Análisis potenciado por IA:
 - Mejora de explicaciones
 - Detección de patrones complejos
 
-### 6. Risk Scoring (`src/core/scoring/`)
+### 6. Risk Scoring (`src/analyzers/core/scoring/`)
 
 Sistema de puntuación:
 - Calcula score 0-100

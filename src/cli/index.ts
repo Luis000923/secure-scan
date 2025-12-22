@@ -10,7 +10,7 @@ import ora from 'ora';
 import * as path from 'path';
 import * as fs from 'fs';
 
-import { SecurityScanner } from '../core/securityScanner';
+import { SecurityScanner } from '../analyzers/core/securityScanner';
 import { ScanConfig, Severity, SupportedLanguage } from '../types';
 import { setLogLevel } from '../utils/logger';
 

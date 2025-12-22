@@ -12,10 +12,10 @@ import {
   FindingCategory,
   SourceLocation,
   CodeSnippet
-} from '../../types';
-import { generateId, extractCodeContext } from '../../utils';
-import { getStandardsForThreat } from '../../rules/standards';
-import { logger } from '../../utils/logger';
+} from '../../../types';
+import { generateId, extractCodeContext } from '../../../utils';
+import { getStandardsForThreat } from '../../../rules/standards';
+import { logger } from '../../../utils/logger';
 
 /**
  * Pattern match result

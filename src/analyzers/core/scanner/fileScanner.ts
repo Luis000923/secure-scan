@@ -6,15 +6,15 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { glob } from 'glob';
-import { ScannedFile, SupportedLanguage, ScanConfig } from '../../types';
+import { ScannedFile, SupportedLanguage, ScanConfig } from '../../../types';
 import { 
   getLanguageFromExtension, 
   shouldExclude, 
   calculateHash, 
   countLines,
   generateId 
-} from '../../utils';
-import { logger } from '../../utils/logger';
+} from '../../../utils';
+import { logger } from '../../../utils/logger';
 
 /**
  * Default file extensions to scan
