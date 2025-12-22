@@ -322,13 +322,27 @@ export class AIAnalyzer {
     }
   }
 
+  // Cache for local AI results
+  private analysisCache: Map<string, AIAnalysisResult> = new Map();
+
   /**
-   * Analyze with local model (Ollama compatible)
+   * Analyze with local model (Ollama compatible) - Optimized for performance
    */
   private async analyzeWithLocal(file: ScannedFile): Promise<AIAnalysisResult> {
     if (!this.config.endpoint) {
       logger.warn('Local AI endpoint not configured');
       return { findings: [] };
+    }
+
+    // Check cache first
+    const perf = this.config.performance || {};
+    if (perf.enableCache) {
+      const cacheKey = `${file.hash}-${this.config.model}`;
+      const cached = this.analysisCache.get(cacheKey);
+      if (cached) {
+        logger.debug(`⚡ Cache hit for ${file.relativePath}`);
+        return cached;
+      }
     }
 
     const prompt = this.buildAnalysisPrompt(file);
@@ -337,6 +351,37 @@ export class AIAnalyzer {
     try {
       logger.debug(`🤖 Usando modelo local: ${model}`);
       
+      // Build Ollama options with performance tuning
+      const ollamaOptions: Record<string, any> = {
+        num_predict: this.config.maxTokens || 2000,
+        temperature: this.config.temperature || 0.1,
+      };
+
+      // Apply performance settings
+      if (perf.numGpuLayers !== undefined) {
+        ollamaOptions.num_gpu = perf.numGpuLayers;
+      }
+      if (perf.numThreads !== undefined) {
+        ollamaOptions.num_thread = perf.numThreads;
+      }
+      if (perf.contextSize !== undefined) {
+        ollamaOptions.num_ctx = perf.contextSize;
+      }
+      if (perf.batchSize !== undefined) {
+        ollamaOptions.num_batch = perf.batchSize;
+      }
+      if (perf.useMmap !== undefined) {
+        ollamaOptions.use_mmap = perf.useMmap;
+      }
+      if (perf.useMlock !== undefined) {
+        ollamaOptions.use_mlock = perf.useMlock;
+      }
+
+      // Use AbortController for timeout
+      const controller = new AbortController();
+      const timeout = perf.timeout || 120000; // 2 minutes default
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
       const response = await fetch(this.config.endpoint, {
         method: 'POST',
         headers: {
@@ -346,12 +391,12 @@ export class AIAnalyzer {
           model: model,
           prompt: `${this.getSystemPrompt()}\n\n${prompt}`,
           stream: false,
-          options: {
-            num_predict: this.config.maxTokens || 2000,
-            temperature: this.config.temperature || 0.1
-          }
-        })
+          options: ollamaOptions
+        }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -367,9 +412,19 @@ export class AIAnalyzer {
         return { findings: [] };
       }
 
-      return this.parseAIResponse(content, file);
+      const result = this.parseAIResponse(content, file);
+
+      // Store in cache
+      if (perf.enableCache) {
+        const cacheKey = `${file.hash}-${this.config.model}`;
+        this.analysisCache.set(cacheKey, result);
+      }
+
+      return result;
     } catch (error: any) {
-      if (error.code === 'ECONNREFUSED') {
+      if (error.name === 'AbortError') {
+        logger.warn(`⚠️ Timeout analizando ${file.relativePath}`);
+      } else if (error.code === 'ECONNREFUSED') {
         logger.warn('⚠️ No se puede conectar al servidor local. ¿Está Ollama ejecutándose?');
         logger.info('💡 Inicia Ollama con: ollama serve');
       } else {
@@ -377,6 +432,38 @@ export class AIAnalyzer {
       }
       return { findings: [] };
     }
+  }
+
+  /**
+   * Analyze multiple files in parallel (for local models)
+   */
+  async analyzeParallel(files: ScannedFile[]): Promise<Map<string, AIAnalysisResult>> {
+    const results = new Map<string, AIAnalysisResult>();
+    const parallelRequests = this.config.performance?.parallelRequests || 1;
+
+    // Process in batches
+    for (let i = 0; i < files.length; i += parallelRequests) {
+      const batch = files.slice(i, i + parallelRequests);
+      const batchPromises = batch.map(async (file) => {
+        const result = await this.analyze(file);
+        return { path: file.relativePath, result };
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      for (const { path, result } of batchResults) {
+        results.set(path, result);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Clear the analysis cache
+   */
+  clearCache(): void {
+    this.analysisCache.clear();
+    logger.debug('🗑️ AI analysis cache cleared');
   }
 
   /**

@@ -1,6 +1,6 @@
 {
   "name": "secure-scan",
-  "version": "1.0.0",
+  "version": "1.2.1-IA_Performances",
   "description": "Herramienta SAST (Análisis Estático de Seguridad) - Detecta vulnerabilidades y código malicioso",
   "main": "dist/index.js",
   "bin": {

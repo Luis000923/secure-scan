@@ -276,6 +276,32 @@ export interface AIConfig {
   maxTokens?: number;
   /** Temperature for generation */
   temperature?: number;
+  /** Performance options for local models */
+  performance?: LocalAIPerformanceConfig;
+}
+
+/**
+ * Performance configuration for local AI models
+ */
+export interface LocalAIPerformanceConfig {
+  /** Number of parallel requests (default: 1) */
+  parallelRequests?: number;
+  /** Number of GPU layers to use (-1 for all, 0 for CPU only) */
+  numGpuLayers?: number;
+  /** Number of threads to use (default: auto) */
+  numThreads?: number;
+  /** Context size in tokens (default: 4096) */
+  contextSize?: number;
+  /** Batch size for processing (default: 512) */
+  batchSize?: number;
+  /** Enable result caching */
+  enableCache?: boolean;
+  /** Use mmap for model loading */
+  useMmap?: boolean;
+  /** Use mlock to keep model in memory */
+  useMlock?: boolean;
+  /** Timeout per request in milliseconds (default: 120000) */
+  timeout?: number;
 }
 
 /**

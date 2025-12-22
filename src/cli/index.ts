@@ -15,11 +15,7 @@ import { ScanConfig, Severity, SupportedLanguage } from '../types';
 import { setLogLevel } from '../utils/logger';
 
 // Información del paquete
-const packageJson = {
-  name: 'secure-scan',
-  version: '1.0.0',
-  description: 'Herramienta SAST - Detecta vulnerabilidades y código malicioso'
-};
+const packageJson = require('../../package.json');
 
 // Crear programa CLI
 const program = new Command();
@@ -147,10 +143,16 @@ program
                          result.riskScore >= 40 ? chalk.yellow : chalk.green;
         console.log(`   📈 Puntuación de Riesgo: ${riskColor(result.riskScore + '/100')} (${result.riskLevel.toUpperCase()})`);
 
-        // Report location
+        // Report location - ensure correct extension is shown
         if (options.output) {
+          let reportPath = path.resolve(options.output);
+          const ext = path.extname(reportPath).toLowerCase();
+          // Add .html extension if no extension provided
+          if (ext === '') {
+            reportPath = `${reportPath}.html`;
+          }
           console.log('');
-          console.log(`   📄 Reporte guardado en: ${chalk.cyan(path.resolve(options.output))}`);
+          console.log(`   📄 Reporte guardado en: ${chalk.cyan(reportPath)}`);
         }
 
         console.log(chalk.cyan('═'.repeat(60)));

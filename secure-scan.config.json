@@ -65,7 +65,18 @@
     "enhanceFindings": true,
     "generateSummary": true,
     "maxTokens": 4096,
-    "temperature": 0.1
+    "temperature": 0.1,
+    "performance": {
+      "parallelRequests": 2,
+      "numGpuLayers": -1,
+      "numThreads": 8,
+      "contextSize": 4096,
+      "batchSize": 512,
+      "enableCache": true,
+      "useMmap": true,
+      "useMlock": false,
+      "timeout": 120000
+    }
   },
   
   "output": {

@@ -74,6 +74,14 @@ export class SecurityScanner {
     try {
       // Initialize analyzers
       await initializeAnalyzers();
+      
+      // Log available analyzers and their versions
+      const allAnalyzers = getAllAnalyzers();
+      logger.info(`🔧 Loaded ${allAnalyzers.length} security analyzers:`);
+      for (const analyzer of allAnalyzers) {
+        logger.info(`   • ${analyzer.name} v${analyzer.version} (${analyzer.languages.join(', ')})`);
+      }
+      
       if (this.aiAnalyzer) {
         await this.aiAnalyzer.initialize();
       }
@@ -108,8 +116,8 @@ export class SecurityScanner {
 
           // Log critical findings immediately
           for (const finding of fileFindings) {
-            if (finding.severity === Severity.CRITICAL || finding.severity === Severity.HIGH) {
-              logFinding(finding.severity, finding.title, finding.location.file, finding.location.startLine);
+            if (finding.severity === Severity.CRITICAL || finding.severity === Severity.HIGH || finding.category === FindingCategory.MALWARE) {
+              logFinding(finding.severity, finding.title, finding.location.file, finding.location.startLine, finding.category);
             }
           }
         } catch (error) {
@@ -179,6 +187,11 @@ export class SecurityScanner {
     // Get language-specific analyzer
     const analyzer = getAnalyzerForLanguage(file.language);
     if (analyzer) {
+      // Log analyzer version being used
+      if (this.config.verbose) {
+        logger.debug(`Using ${analyzer.name} v${analyzer.version} for ${file.relativePath}`);
+      }
+      
       const rules = getEnabledRules().filter(r => 
         r.languages.includes(file.language!)
       );
