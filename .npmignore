@@ -1,0 +1,14 @@
+# Exclude the following files and directories from the npm package
+node_modules
+dist
+test-samples
+.vscode
+.DS_Store
+*.log
+*.tmp
+coverage
+*.test.ts
+*.spec.ts
+.env
+obj
+bin

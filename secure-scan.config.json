@@ -16,22 +16,8 @@
       "yaml",
       "terraform"
     ],
-    "exclude": [
-      "**/node_modules/**",
-      "**/vendor/**",
-      "**/venv/**",
-      "**/.venv/**",
-      "**/dist/**",
-      "**/build/**",
-      "**/target/**",
-      "**/.git/**",
-      "**/coverage/**",
-      "**/__pycache__/**",
-      "**/*.min.js",
-      "**/*.min.css",
-      "**/package-lock.json",
-      "**/yarn.lock",
-      "**/composer.lock"
+    "exclude": [ "aqui se agregan las exclusiones de archivos o carpetas"
+     
     ],
     "include": [],
     "maxFileSize": 1048576,

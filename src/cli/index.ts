@@ -187,18 +187,126 @@ program
     }
 
     const defaultConfig = {
-      exclude: ['node_modules', 'dist', 'vendor', '.git'],
-      languages: ['javascript', 'typescript', 'python', 'php', 'java', 'c', 'cpp', 'csharp'],
-      minSeverity: 'low',
-      language: 'es',
+      "$schema": "https://raw.githubusercontent.com/Sobdev/secure-scan/main/schema.json",
+      version: "1.0.0",
+      
+      scan: {
+        languages: [
+          "javascript",
+          "typescript",
+          "python",
+          "php",
+          "java",
+          "c",
+          "cpp",
+          "csharp",
+          "dockerfile",
+          "yaml",
+          "terraform"
+        ],
+        exclude: [
+          "node_modules",
+          "dist",
+          "vendor",
+          ".git"
+        ],
+        include: [],
+        maxFileSize: 1048576,
+        maxFiles: 10000,
+        followSymlinks: false
+      },
+      
+      rules: {
+        enabled: true,
+        categories: {
+          vulnerability: true,
+          malware: true
+        },
+        severity: {
+          critical: true,
+          high: true,
+          medium: true,
+          low: true,
+          info: false
+        },
+        customRulesPath: null,
+        disabledRules: []
+      },
+      
       ai: {
         enabled: false,
-        provider: 'openai',
-        model: 'gpt-4'
+        provider: "local",
+        model: "codellama:7b-instruct",
+        apiKey: null,
+        endpoint: "http://localhost:11434/api/generate",
+        enhanceFindings: true,
+        generateSummary: true,
+        maxTokens: 4096,
+        temperature: 0.1,
+        performance: {
+          parallelRequests: 2,
+          numGpuLayers: -1,
+          numThreads: 8,
+          contextSize: 4096,
+          batchSize: 512,
+          enableCache: true,
+          useMmap: true,
+          useMlock: false,
+          timeout: 120000
+        }
       },
-      rules: {
-        disabled: [],
-        custom: []
+      
+      output: {
+        format: "html",
+        path: "./secure-scan-report",
+        filename: "security-report",
+        includeSource: true,
+        groupBy: "severity",
+        sortBy: "severity"
+      },
+      
+      scoring: {
+        enabled: true,
+        weights: {
+          critical: 100,
+          high: 50,
+          medium: 20,
+          low: 5,
+          info: 1
+        },
+        categoryMultipliers: {
+          vulnerability: 1.0,
+          malware: 1.5
+        },
+        thresholds: {
+          fail: 70,
+          warn: 40
+        }
+      },
+      
+      performance: {
+        parallelism: 4,
+        timeout: 300000,
+        cacheEnabled: true,
+        cachePath: ".secure-scan-cache"
+      },
+      
+      integrations: {
+        git: {
+          enabled: true,
+          scanOnlyChanged: false,
+          baseBranch: "main"
+        },
+        sarif: {
+          enabled: false,
+          path: "./results.sarif"
+        }
+      },
+      
+      logging: {
+        level: "info",
+        file: null,
+        colors: true
       }
     };
 

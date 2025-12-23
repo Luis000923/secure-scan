@@ -756,6 +756,15 @@ export class HtmlReportGenerator implements ReportGenerator {
 
   <footer>
     <p>{{t.generatedBy}} <strong>Secure-Scan</strong> - Herramienta SAST</p>
+    <p>
+      <a href="https://github.com/Luis000923/secure-scan" target="_blank" style="color: var(--primary-color); text-decoration: none;">
+        🌐 GitHub Repository
+      </a>
+      &nbsp;|&nbsp;
+      <a href="https://www.npmjs.com/package/secure-scan" target="_blank" style="color: var(--primary-color); text-decoration: none;">
+        📦 npm Package
+      </a>
+    </p>
     <p>© {{currentYear}} - {{t.securityReport}}</p>
   </footer>
 

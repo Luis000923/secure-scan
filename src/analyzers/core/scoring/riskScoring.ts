@@ -52,9 +52,13 @@ export class RiskScoringEngine {
     let totalScore = 0;
 
     for (const finding of findings) {
-      const severityWeight = SEVERITY_WEIGHTS[finding.severity];
-      const categoryWeight = CATEGORY_WEIGHTS[finding.category];
-      const confidenceMultiplier = finding.confidence / 100;
+      const severityWeight = SEVERITY_WEIGHTS[finding.severity] || 1;
+      const categoryWeight = CATEGORY_WEIGHTS[finding.category] || 1;
+      // Handle undefined or invalid confidence values
+      const confidence = typeof finding.confidence === 'number' && !isNaN(finding.confidence) 
+        ? finding.confidence 
+        : 80; // Default confidence
+      const confidenceMultiplier = confidence / 100;
 
       totalScore += severityWeight * categoryWeight * confidenceMultiplier;
     }

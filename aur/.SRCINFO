@@ -1,0 +1,11 @@
+pkgbase = secure-scan
+	pkgdesc = Herramienta SAST para detectar vulnerabilidades y código malicioso
+	pkgver = 1.2.4
+	pkgrel = 1
+	url = https://github.com/Sobdev/secure-scan
+	arch = any
+	license = MIT
+	makedepends = npm
+	depends = nodejs>=18
+
+pkgname = secure-scan

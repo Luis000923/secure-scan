@@ -1,0 +1,17 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	npm install
+	npm run build
+
+override_dh_auto_install:
+	mkdir -p debian/secure-scan/usr/lib/secure-scan
+	mkdir -p debian/secure-scan/usr/bin
+	cp -r dist/* debian/secure-scan/usr/lib/secure-scan/
+	cp -r node_modules debian/secure-scan/usr/lib/secure-scan/
+	cp package.json debian/secure-scan/usr/lib/secure-scan/
+	echo '#!/bin/bash\nnode /usr/lib/secure-scan/cli/index.js "$$@"' > debian/secure-scan/usr/bin/secure-scan
+	chmod +x debian/secure-scan/usr/bin/secure-scan
