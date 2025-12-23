@@ -4,7 +4,7 @@
   "description": "Herramienta SAST (Análisis Estático de Seguridad) para detectar vulnerabilidades y código malicioso.",
   "main": "dist/index.js",
   "bin": {
-    "secure-scan": "./dist/cli/index.js"
+    "secure": "./dist/cli/index.js"
   },
   "repository": {
     "type": "git",
