@@ -78,70 +78,69 @@ npm link
 ```
 # Verificar instalación
 ```bash
-secure-scan -V
-secure-scan --version
+secure -V
+secure --version
 ```
 
 ## 📖 Uso
-### VISO MODIFICAR EL ARCHIVO secure-scan.config.json PARA CONFIGURAR LA HERRAMIENTA SEGÚN TUS NECESIDADES.
+### AVISO: MODIFICAR EL ARCHIVO secure-scan.config.json PARA CONFIGURAR LA HERRAMIENTA SEGÚN TUS NECESIDADES.
 ### Escaneo Básico
 
 ```bash
 # Escanear un proyecto
-secure-scan scan ./mi-proyecto
+secure scan ./mi-proyecto
 
 # O usando la ruta completa
-secure-scan scan "C:\Users\TuUsuario\Proyectos\mi-proyecto"
+secure scan "C:\Users\TuUsuario\Proyectos\mi-proyecto"
 
-#puede personalizar sus escaneos con
-secure-scan init
+# Puede personalizar sus escaneos con
+secure init
 ```
 
-#comando sugerido
+# Comando sugerido
 ```bash
-secure-scan scan "ruta-proyecto-analizar" -v --ai --ai-provider local -o "ruta-resultado-escaneo\nombre-resultado"
+secure scan "ruta-proyecto-analizar" -v --ai --ai-provider local -o "ruta-resultado-escaneo\nombre-resultado"
 ```
 
 ### Opciones Disponibles
 
 ```bash
 # Escanear con reporte HTML personalizado
-secure-scan scan ./proyecto -o ./mi-reporte
+secure scan ./proyecto -o ./mi-reporte
 
 # Modo verbose (más detalles)
-secure-scan scan ./proyecto -v
+secure scan ./proyecto -v
 
 # Usar análisis de IA (requiere API key)
-secure-scan scan ./proyecto --ai --api-key TU_API_KEY
+secure scan ./proyecto --ai --api-key TU_API_KEY
 
 # Especificar lenguajes
-secure-scan scan ./proyecto --languages javascript,python
+secure scan ./proyecto --languages javascript,python
 
 # Reporte en inglés
-secure-scan scan ./proyecto --lang en
+secure scan ./proyecto --lang en
 
 # Reporte en español (por defecto)
-secure-scan scan ./proyecto --lang es
+secure scan ./proyecto --lang es
 ```
 
 ### Comandos Adicionales
 
 ```bash
 # Ver ayuda
-secure-scan --help
+secure --help
 
 # Ver versión
-secure-scan --version
+secure --version
 
 # Inicializar configuración
-secure-scan init
+secure init
 
 # Listar reglas disponibles
-secure-scan rules
+secure rules
 
 # Filtrar reglas por lenguaje
-secure-scan rules -l pytho
-
+secure rules -l python
 ```
 
 ## 🌍 Idiomas
@@ -155,10 +154,10 @@ Secure-Scan soporta reportes en múltiples idiomas:
 
 ```bash
 # Reporte en español (por defecto)
-secure-scan scan ./proyecto -o reporte
+secure scan ./proyecto -o reporte
 
 # Reporte en inglés
-secure-scan scan ./proyecto -o report --lang en
+secure scan ./proyecto -o report --lang en
 ```
 
 ## 📊 Niveles de Severidad
@@ -263,7 +262,7 @@ Modifica la sección `ai` en `secure-scan.config.json`:
 
 4. **Ejecutar escaneo con IA local**:
    ```bash
-   secure-scan scan ./mi-proyecto --ai
+   secure scan ./mi-proyecto --ai
    ```
 
 ### Ejemplo con LM Studio
