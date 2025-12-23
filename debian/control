@@ -1,0 +1,16 @@
+Source: secure-scan
+Section: devel
+Priority: optional
+Maintainer: Sobdev <tu-email@ejemplo.com>
+Build-Depends: debhelper (>= 11), nodejs (>= 18), npm
+Standards-Version: 4.5.0
+Homepage: https://github.com/Sobdev/secure-scan
+
+Package: secure-scan
+Architecture: all
+Depends: nodejs (>= 18)
+Description: Herramienta SAST para detectar vulnerabilidades y malware
+ Secure-Scan es una herramienta de Análisis Estático de Seguridad (SAST)
+ que detecta vulnerabilidades de seguridad y código malicioso en múltiples
+ lenguajes de programación incluyendo JavaScript, TypeScript, Python, PHP,
+ Java, C/C++, C# y archivos de infraestructura como código.

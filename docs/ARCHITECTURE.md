@@ -2,7 +2,7 @@
 
 ## Visión General
 
-Secure-Scan es una herramienta de **Análisis Estático de Seguridad de Aplicaciones (SAST)** diseñada con una arquitectura modular y extensible.
+Secure-Scan es una herramienta profesional de **Análisis Estático de Seguridad de Aplicaciones (SAST)** diseñada con una arquitectura modular, extensible y de nivel empresarial.
 
 ## Diagrama de Arquitectura
 
@@ -30,8 +30,8 @@ Secure-Scan es una herramienta de **Análisis Estático de Seguridad de Aplicaci
 │   File Scanner   │ │ Rule Engine  │ │  AI Analyzer     │
 │                  │ │              │ │                  │
 │ - Escanea dirs   │ │ - Patterns   │ │ - OpenAI/Claude  │
-│ - Detecta langs  │ │ - Regex      │ │ - Local models   │
-│ - Lee archivos   │ │ - AST        │ │ - Enhancement    │
+│ - Detecta langs  │ │ - Regex      │ │ - Modelos locales│
+│ - Lee archivos   │ │ - AST        │ │ - Mejora reglas  │
 └──────────────────┘ └──────────────┘ └──────────────────┘
            │                │                │
            └────────────────┴────────────────┘
@@ -80,7 +80,7 @@ Punto de entrada de la aplicación. Maneja:
 - `init` - Crea archivo de configuración
 - `rules` - Lista reglas disponibles
 
-### 2. File Scanner (`src/core/scanner/`)
+### 2. File Scanner (`src/analyzers/core/scanner/`)
 
 Responsable de:
 - Escanear directorios recursivamente
@@ -89,7 +89,7 @@ Responsable de:
 - Filtrar por patrones de exclusión
 - Calcular hashes de archivos
 
-### 3. Rule Engine (`src/core/engine/`)
+### 3. Rule Engine (`src/analyzers/core/engine/`)
 
 Motor de reglas que:
 - Carga reglas de detección
@@ -120,7 +120,7 @@ Análisis potenciado por IA:
 - Mejora de explicaciones
 - Detección de patrones complejos
 
-### 6. Risk Scoring (`src/core/scoring/`)
+### 6. Risk Scoring (`src/analyzers/core/scoring/`)
 
 Sistema de puntuación:
 - Calcula score 0-100
@@ -298,17 +298,23 @@ export class NewLanguageAnalyzer extends BaseAnalyzer {
 - Multi-lenguaje
 - CLI avanzado
 
-### Fase 3 (Futuro)
+### Fase 3 ✅
 - Análisis AST
-- Análisis de dependencias
-- Integración CI/CD
+- Análisis de IaC (Dockerfile, YAML, Terraform)
+- Detección de malware
 
-### Fase 4 (Futuro)
+### Fase 4 ✅
+- Análisis de dependencias (SCA)
+- Software Composition Analysis
+- Detección de CVEs, typosquatting, paquetes maliciosos
+- Soporte para npm, pip, composer, maven, nuget, vcpkg
+
+### Fase 5 (Futuro)
 - Dashboard web
 - API REST
 - Multi-tenant SaaS
 
-### Fase 5 (Futuro)
+### Fase 6 (Futuro)
 - DAST (análisis dinámico)
 - IAST (instrumentación)
 - RASP (protección runtime)

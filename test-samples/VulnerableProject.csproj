@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <RootNamespace>VulnerableProject</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Vulnerable Newtonsoft.Json -->
+    <PackageReference Include="Newtonsoft.Json" Version="12.0.0" />
+    
+    <!-- Vulnerable System.Text.Json -->
+    <PackageReference Include="System.Text.Json" Version="5.0.0" />
+    
+    <!-- Vulnerable Entity Framework -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.0" />
+    
+    <!-- Vulnerable SignalR -->
+    <PackageReference Include="Microsoft.AspNetCore.SignalR" Version="1.0.0" />
+    
+    <!-- Vulnerable Identity -->
+    <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.0.0" />
+    
+    <!-- Potentially vulnerable logging -->
+    <PackageReference Include="Serilog" Version="2.9.0" />
+    
+    <!-- Test packages -->
+    <PackageReference Include="xunit" Version="2.4.0" />
+    <PackageReference Include="Moq" Version="4.15.0" />
+  </ItemGroup>
+
+</Project>

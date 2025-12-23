@@ -16,22 +16,8 @@
       "yaml",
       "terraform"
     ],
-    "exclude": [
-      "**/node_modules/**",
-      "**/vendor/**",
-      "**/venv/**",
-      "**/.venv/**",
-      "**/dist/**",
-      "**/build/**",
-      "**/target/**",
-      "**/.git/**",
-      "**/coverage/**",
-      "**/__pycache__/**",
-      "**/*.min.js",
-      "**/*.min.css",
-      "**/package-lock.json",
-      "**/yarn.lock",
-      "**/composer.lock"
+    "exclude": [ "aqui se agregan las exclusiones de archivos o carpetas"
+     
     ],
     "include": [],
     "maxFileSize": 1048576,
@@ -57,15 +43,26 @@
   },
   
   "ai": {
-    "enabled": false,
-    "provider": "openai",
-    "model": "gpt-5",
+    "enabled": true,
+    "provider": "local",
+    "model": "codellama:7b-instruct",
     "apiKey": null,
-    "baseUrl": null,
+    "endpoint": "http://localhost:11434/api/generate",
     "enhanceFindings": true,
     "generateSummary": true,
     "maxTokens": 4096,
-    "temperature": 0.1
+    "temperature": 0.1,
+    "performance": {
+      "parallelRequests": 2,
+      "numGpuLayers": -1,
+      "numThreads": 8,
+      "contextSize": 4096,
+      "batchSize": 512,
+      "enableCache": true,
+      "useMmap": true,
+      "useMlock": false,
+      "timeout": 120000
+    }
   },
   
   "output": {

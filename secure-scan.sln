@@ -1,0 +1,29 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.5.2.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test-samples", "test-samples", "{5E849C8E-AA1E-7CD4-5143-C6E7A8E2EC2D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VulnerableProject", "test-samples\VulnerableProject.csproj", "{970E6386-2235-55A4-270C-676D2128FFFC}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{970E6386-2235-55A4-270C-676D2128FFFC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{970E6386-2235-55A4-270C-676D2128FFFC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{970E6386-2235-55A4-270C-676D2128FFFC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{970E6386-2235-55A4-270C-676D2128FFFC}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{970E6386-2235-55A4-270C-676D2128FFFC} = {5E849C8E-AA1E-7CD4-5143-C6E7A8E2EC2D}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C65C7978-61E0-4C31-98B7-BA2317A793D2}
+	EndGlobalSection
+EndGlobal

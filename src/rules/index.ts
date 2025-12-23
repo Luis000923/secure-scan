@@ -4,18 +4,24 @@
  */
 
 export * from './standards';
-export * from './vulnerabilities';
-export * from './malware';
+
+// Re-export vulnerabilities with namespace prefix to avoid conflicts
+export * as vulnerabilities from './vulnerabilities';
+export { allVulnerabilityRules, VulnerabilityRuleEngine } from './vulnerabilities';
+
+// Re-export malware with namespace prefix to avoid conflicts
+export * as malware from './malware';
+export { malwareRules, MalwareRuleEngine } from './malware';
 
 import { Rule } from '../types';
-import { vulnerabilityRules } from './vulnerabilities';
+import { allVulnerabilityRules } from './vulnerabilities';
 import { malwareRules } from './malware';
 
 /**
  * Get all rules
  */
 export function getAllRules(): Rule[] {
-  return [...vulnerabilityRules, ...malwareRules];
+  return [...allVulnerabilityRules as unknown as Rule[], ...malwareRules as unknown as Rule[]];
 }
 
 /**
@@ -23,9 +29,9 @@ export function getAllRules(): Rule[] {
  */
 export function getRulesByCategory(category: 'vulnerability' | 'malware'): Rule[] {
   if (category === 'vulnerability') {
-    return vulnerabilityRules;
+    return allVulnerabilityRules as unknown as Rule[];
   }
-  return malwareRules;
+  return malwareRules as unknown as Rule[];
 }
 
 /**

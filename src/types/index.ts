@@ -1,10 +1,10 @@
 /**
- * Core Types for Secure-Scan SAST Tool
- * Enterprise-grade type definitions
+ * Tipos principales para Secure-Scan SAST
+ * Definiciones de tipos para análisis de seguridad
  */
 
 /**
- * Supported programming languages for analysis
+ * Lenguajes de programación soportados para análisis
  */
 export type SupportedLanguage = 
   | 'javascript'
@@ -264,8 +264,8 @@ export interface ScanConfig {
  * AI configuration
  */
 export interface AIConfig {
-  /** AI provider */
-  provider: 'openai' | 'anthropic' | 'local';
+  /** AI provider (auto-detected if not specified) */
+  provider: 'openai' | 'anthropic' | 'google' | 'gemini' | 'local' | 'auto';
   /** API key */
   apiKey?: string;
   /** Model to use */
@@ -276,6 +276,32 @@ export interface AIConfig {
   maxTokens?: number;
   /** Temperature for generation */
   temperature?: number;
+  /** Performance options for local models */
+  performance?: LocalAIPerformanceConfig;
+}
+
+/**
+ * Performance configuration for local AI models
+ */
+export interface LocalAIPerformanceConfig {
+  /** Number of parallel requests (default: 1) */
+  parallelRequests?: number;
+  /** Number of GPU layers to use (-1 for all, 0 for CPU only) */
+  numGpuLayers?: number;
+  /** Number of threads to use (default: auto) */
+  numThreads?: number;
+  /** Context size in tokens (default: 4096) */
+  contextSize?: number;
+  /** Batch size for processing (default: 512) */
+  batchSize?: number;
+  /** Enable result caching */
+  enableCache?: boolean;
+  /** Use mmap for model loading */
+  useMmap?: boolean;
+  /** Use mlock to keep model in memory */
+  useMlock?: boolean;
+  /** Timeout per request in milliseconds (default: 120000) */
+  timeout?: number;
 }
 
 /**

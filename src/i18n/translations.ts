@@ -57,6 +57,10 @@ export interface Translations {
   // Categories
   vulnerability: string;
   vulnerabilities: string;
+  
+  // Malware details
+  affectedFiles: string;
+  analyzersUsed: string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -112,6 +116,10 @@ export const translations: Record<Language, Translations> = {
     // Categorías
     vulnerability: 'Vulnerabilidad',
     vulnerabilities: 'Vulnerabilidades',
+    
+    // Detalles de malware
+    affectedFiles: 'Archivos afectados',
+    analyzersUsed: 'Analizadores utilizados',
   },
   
   en: {
@@ -166,6 +174,10 @@ export const translations: Record<Language, Translations> = {
     // Categories
     vulnerability: 'Vulnerability',
     vulnerabilities: 'Vulnerabilities',
+    
+    // Malware details
+    affectedFiles: 'Affected files',
+    analyzersUsed: 'Analyzers used',
   }
 };
 

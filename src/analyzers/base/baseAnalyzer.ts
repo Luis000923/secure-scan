@@ -4,7 +4,7 @@
  */
 
 import { Analyzer, ScannedFile, Finding, Rule, SupportedLanguage } from '../../types';
-import { RuleEngine } from '../../core/engine';
+import { RuleEngine } from '../core/engine';
 import { logger } from '../../utils/logger';
 
 /**

@@ -17,73 +17,47 @@
 - 📋 **Mapeo a Estándares** - OWASP Top 10, CWE, MITRE ATT&CK, SANS Top 25
 - 🌍 **Multiidioma** - Reportes en español (por defecto) o inglés
 
-## 🏗️ Arquitectura
-
-```
-secure-scan/
-├── src/
-│   ├── cli/                    # Interfaz de línea de comandos
-│   ├── core/                   # Núcleo del sistema
-│   │   ├── scanner/            # Escáner de archivos
-│   │   ├── engine/             # Motor de reglas
-│   │   └── scoring/            # Motor de puntuación de riesgo
-│   ├── analyzers/              # Analizadores por lenguaje (plugins)
-│   │   ├── javascript/
-│   │   ├── python/
-│   │   ├── php/
-│   │   ├── java/
-│   │   ├── c-cpp/
-│   │   ├── csharp/
-│   │   └── iac/                # Infraestructura como Código
-│   ├── rules/                  # Reglas de detección
-│   │   ├── vulnerabilities/
-│   │   └── malware/
-│   ├── ai/                     # Motor de IA
-│   ├── reports/                # Generador de reportes
-│   ├── i18n/                   # Traducciones (español/inglés)
-│   ├── types/                  # Definiciones TypeScript
-│   └── utils/                  # Utilidades
-├── test-samples/               # Archivos de prueba
-└── docs/                       # Documentación
-```
 
 ## 🚀 Instalación
 
 ### Opción 1: Instalación Global (Recomendada)
 
-# PUEDEN DESCARGARLO USANDO:
 ```bash
 npm install -g secure-scan
 ```
-#Asi se evitan usar la clonacion del repositorio
+Así se evitan usar la clonación del repositorio.
 
-#Eliminar la herramienta
+### Desinstalar la herramienta
 ```bash
-npm uninstall secure-scan
+npm uninstall -g secure-scan
 ```
-# Clonar el repositorio
+
+### Opción 2: Clonar el repositorio
 ```bash
 git clone https://github.com/your-org/secure-scan.git
 cd secure-scan
 ```
 
-# Instalar dependencias y compilar
+Instalar dependencias y compilar:
 ```bash
 npm install
 ```
 
-# Instalar globalmente
+Instalar globalmente:
 ```bash
 npm link
 ```
-# Verificar instalación
+
+### Verificar instalación
 ```bash
 secure -V
 secure --version
 ```
 
 ## 📖 Uso
-### AVISO: MODIFICAR EL ARCHIVO secure-scan.config.json PARA CONFIGURAR LA HERRAMIENTA SEGÚN TUS NECESIDADES.
+
+> **AVISO:** Modificar el archivo `secure-scan.config.json` para configurar la herramienta según tus necesidades.
+
 ### Escaneo Básico
 
 ```bash
@@ -93,11 +67,11 @@ secure scan ./mi-proyecto
 # O usando la ruta completa
 secure scan "C:\Users\TuUsuario\Proyectos\mi-proyecto"
 
-# Puede personalizar sus escaneos con
+# Personalizar escaneos con
 secure init
 ```
 
-# Comando sugerido
+### Comando Sugerido
 ```bash
 secure scan "ruta-proyecto-analizar" -v --ai --ai-provider local -o "ruta-resultado-escaneo\nombre-resultado"
 ```
@@ -141,6 +115,37 @@ secure rules
 
 # Filtrar reglas por lenguaje
 secure rules -l python
+```
+
+
+## 🏗️ Arquitectura
+
+```
+secure-scan/
+├── src/
+│   ├── cli/                    # Interfaz de línea de comandos
+│   ├── core/                   # Núcleo del sistema
+│   │   ├── scanner/            # Escáner de archivos
+│   │   ├── engine/             # Motor de reglas
+│   │   └── scoring/            # Motor de puntuación de riesgo
+│   ├── analyzers/              # Analizadores por lenguaje (plugins)
+│   │   ├── javascript/
+│   │   ├── python/
+│   │   ├── php/
+│   │   ├── java/
+│   │   ├── c-cpp/
+│   │   ├── csharp/
+│   │   └── iac/                # Infraestructura como Código
+│   ├── rules/                  # Reglas de detección
+│   │   ├── vulnerabilities/
+│   │   └── malware/
+│   ├── ai/                     # Motor de IA
+│   ├── reports/                # Generador de reportes
+│   ├── i18n/                   # Traducciones (español/inglés)
+│   ├── types/                  # Definiciones TypeScript
+│   └── utils/                  # Utilidades
+├── test-samples/               # Archivos de prueba
+└── docs/                       # Documentación
 ```
 
 ## 🌍 Idiomas

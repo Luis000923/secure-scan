@@ -19,27 +19,82 @@ interface AIAnalysisResult {
 }
 
 /**
+ * Detected AI Provider
+ */
+type DetectedProvider = 'openai' | 'anthropic' | 'google' | 'local';
+
+/**
  * AI Analyzer Class
  * Provides AI-powered security analysis
  */
 export class AIAnalyzer {
   private config: AIConfig;
   private initialized: boolean = false;
+  private detectedProvider: DetectedProvider = 'openai';
 
   constructor(config: AIConfig) {
     this.config = config;
+    // Auto-detect provider from API key if set to 'auto' or not specified correctly
+    this.detectedProvider = this.detectProvider();
+  }
+
+  /**
+   * Auto-detect AI provider from API key format
+   */
+  private detectProvider(): DetectedProvider {
+    const apiKey = this.config.apiKey || '';
+    const provider = this.config.provider;
+    
+    // If explicitly set to local, use local
+    if (provider === 'local') {
+      return 'local';
+    }
+    
+    // Auto-detect from API key format
+    if (apiKey.startsWith('sk-ant-') || apiKey.startsWith('sk-ant')) {
+      logger.debug('🔍 Detected Anthropic API key');
+      return 'anthropic';
+    }
+    
+    if (apiKey.startsWith('AIzaSy') || apiKey.startsWith('AIza')) {
+      logger.debug('🔍 Detected Google AI API key');
+      return 'google';
+    }
+    
+    if (apiKey.startsWith('sk-') || apiKey.startsWith('sk-proj-')) {
+      logger.debug('🔍 Detected OpenAI API key');
+      return 'openai';
+    }
+    
+    // Fallback to configured provider or openai
+    if (provider === 'google' || provider === 'gemini') {
+      return 'google';
+    }
+    if (provider === 'anthropic') {
+      return 'anthropic';
+    }
+    if (provider === 'openai') {
+      return 'openai';
+    }
+    
+    // Default to openai if we can't detect
+    return 'openai';
   }
 
   /**
    * Initialize AI analyzer
    */
   async initialize(): Promise<void> {
-    if (!this.config.apiKey && this.config.provider !== 'local') {
+    if (!this.config.apiKey && this.detectedProvider !== 'local') {
       logger.warn('⚠️ AI API key not provided. AI analysis will be limited.');
       return;
     }
 
-    logger.info('🤖 Initializing AI analyzer...');
+    const providerName = this.detectedProvider === 'google' ? 'Google AI (Gemini)' :
+                         this.detectedProvider === 'anthropic' ? 'Anthropic (Claude)' :
+                         this.detectedProvider === 'openai' ? 'OpenAI (GPT)' : 'Local';
+    
+    logger.info(`🤖 Initializing AI analyzer with ${providerName}...`);
     this.initialized = true;
   }
 
@@ -52,11 +107,13 @@ export class AIAnalyzer {
     }
 
     try {
-      switch (this.config.provider) {
+      switch (this.detectedProvider) {
         case 'openai':
           return await this.analyzeWithOpenAI(file);
         case 'anthropic':
           return await this.analyzeWithAnthropic(file);
+        case 'google':
+          return await this.analyzeWithGoogle(file);
         case 'local':
           return await this.analyzeWithLocal(file);
         default:
@@ -69,7 +126,28 @@ export class AIAnalyzer {
   }
 
   /**
-   * Analyze with OpenAI
+   * Get the best model for the provider
+   */
+  private getModel(): string {
+    if (this.config.model) {
+      return this.config.model;
+    }
+    
+    // Default models per provider
+    switch (this.detectedProvider) {
+      case 'openai':
+        return 'gpt-4o'; // Latest and most capable
+      case 'anthropic':
+        return 'claude-3-sonnet-20240229';
+      case 'google':
+        return 'gemini-pro'; // Stable model for v1beta API
+      default:
+        return 'gpt-4';
+    }
+  }
+
+  /**
+   * Analyze with OpenAI (supports all GPT models)
    */
   private async analyzeWithOpenAI(file: ScannedFile): Promise<AIAnalysisResult> {
     // Dynamic import to avoid issues if package not installed
@@ -80,43 +158,175 @@ export class AIAnalyzer {
     });
 
     const prompt = this.buildAnalysisPrompt(file);
+    const model = this.getModel();
+    
+    logger.debug(`Using OpenAI model: ${model}`);
 
-    const response = await client.chat.completions.create({
-      model: this.config.model || 'gpt-4',
-      messages: [
-        {
-          role: 'system',
-          content: this.getSystemPrompt()
-        },
-        {
-          role: 'user',
-          content: prompt
-        }
-      ],
-      max_tokens: this.config.maxTokens || 2000,
-      temperature: this.config.temperature || 0.1
-    });
+    try {
+      const response = await client.chat.completions.create({
+        model: model,
+        messages: [
+          {
+            role: 'system',
+            content: this.getSystemPrompt()
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        max_tokens: this.config.maxTokens || 2000,
+        temperature: this.config.temperature || 0.1
+      });
 
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        return { findings: [] };
+      }
+
+      return this.parseAIResponse(content, file);
+    } catch (error: any) {
+      if (error?.status === 429) {
+        logger.warn('⚠️ OpenAI: Cuota excedida. Verifica tu plan en https://platform.openai.com/account/billing');
+      } else if (error?.status === 401) {
+        logger.warn('⚠️ OpenAI: API key inválida');
+      } else {
+        logger.debug(`OpenAI error: ${error.message || error}`);
+      }
       return { findings: [] };
     }
-
-    return this.parseAIResponse(content, file);
   }
 
   /**
    * Analyze with Anthropic Claude
    */
   private async analyzeWithAnthropic(file: ScannedFile): Promise<AIAnalysisResult> {
-    // Placeholder for Anthropic integration
-    // Would use @anthropic-ai/sdk
-    logger.debug('Anthropic integration not implemented yet');
-    return { findings: [] };
+    try {
+      const Anthropic = (await import('@anthropic-ai/sdk')).default;
+      
+      const client = new Anthropic({
+        apiKey: this.config.apiKey
+      });
+
+      const prompt = this.buildAnalysisPrompt(file);
+      const model = this.getModel();
+      
+      logger.debug(`Using Anthropic model: ${model}`);
+
+      const response = await client.messages.create({
+        model: model,
+        max_tokens: this.config.maxTokens || 2000,
+        system: this.getSystemPrompt(),
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
+      });
+
+      const content = response.content[0];
+      if (!content || content.type !== 'text') {
+        return { findings: [] };
+      }
+
+      return this.parseAIResponse(content.text, file);
+    } catch (error) {
+      logger.debug(`Anthropic analysis error: ${error}`);
+      return { findings: [] };
+    }
   }
 
   /**
-   * Analyze with local model
+   * Analyze with Google AI (Gemini)
+   */
+  private async analyzeWithGoogle(file: ScannedFile): Promise<AIAnalysisResult> {
+    try {
+      const prompt = this.buildAnalysisPrompt(file);
+      const model = this.getModel();
+      
+      logger.debug(`Using Google AI model: ${model}`);
+
+      // Use Google AI REST API directly
+      const apiKey = this.config.apiKey;
+      
+      // Try v1 API first, fallback to v1beta
+      const apis = [
+        `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
+      ];
+      
+      let lastError: any = null;
+      
+      for (const url of apis) {
+        try {
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [
+                    {
+                      text: `${this.getSystemPrompt()}\n\n${prompt}`
+                    }
+                  ]
+                }
+              ],
+              generationConfig: {
+                temperature: this.config.temperature || 0.1,
+                maxOutputTokens: this.config.maxTokens || 2000
+              }
+            })
+          });
+
+          const data = await response.json() as any;
+          
+          if (!response.ok) {
+            lastError = data.error;
+            continue; // Try next API version
+          }
+          
+          const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          
+          if (!content) {
+            return { findings: [] };
+          }
+
+          return this.parseAIResponse(content, file);
+        } catch (e) {
+          lastError = e;
+          continue;
+        }
+      }
+      
+      // If all APIs failed, show helpful message
+      if (lastError) {
+        if (lastError.code === 404) {
+          logger.warn(`⚠️ Google AI: Modelo "${model}" no disponible. Intenta con: gemini-pro`);
+        } else if (lastError.code === 403) {
+          logger.warn('⚠️ Google AI: API key sin permisos. Habilita la API en Google Cloud Console.');
+        } else if (lastError.code === 429) {
+          logger.warn('⚠️ Google AI: Cuota excedida. Espera un momento o verifica tu plan.');
+        } else {
+          logger.debug(`Google AI error: ${JSON.stringify(lastError)}`);
+        }
+      }
+      
+      return { findings: [] };
+    } catch (error) {
+      logger.debug(`Google AI analysis error: ${error}`);
+      return { findings: [] };
+    }
+  }
+
+  // Cache for local AI results
+  private analysisCache: Map<string, AIAnalysisResult> = new Map();
+
+  /**
+   * Analyze with local model (Ollama compatible) - Optimized for performance
    */
   private async analyzeWithLocal(file: ScannedFile): Promise<AIAnalysisResult> {
     if (!this.config.endpoint) {
@@ -124,27 +334,136 @@ export class AIAnalyzer {
       return { findings: [] };
     }
 
+    // Check cache first
+    const perf = this.config.performance || {};
+    if (perf.enableCache) {
+      const cacheKey = `${file.hash}-${this.config.model}`;
+      const cached = this.analysisCache.get(cacheKey);
+      if (cached) {
+        logger.debug(`⚡ Cache hit for ${file.relativePath}`);
+        return cached;
+      }
+    }
+
     const prompt = this.buildAnalysisPrompt(file);
+    const model = this.config.model || 'codellama:7b-instruct';
 
     try {
+      logger.debug(`🤖 Usando modelo local: ${model}`);
+      
+      // Build Ollama options with performance tuning
+      const ollamaOptions: Record<string, any> = {
+        num_predict: this.config.maxTokens || 2000,
+        temperature: this.config.temperature || 0.1,
+      };
+
+      // Apply performance settings
+      if (perf.numGpuLayers !== undefined) {
+        ollamaOptions.num_gpu = perf.numGpuLayers;
+      }
+      if (perf.numThreads !== undefined) {
+        ollamaOptions.num_thread = perf.numThreads;
+      }
+      if (perf.contextSize !== undefined) {
+        ollamaOptions.num_ctx = perf.contextSize;
+      }
+      if (perf.batchSize !== undefined) {
+        ollamaOptions.num_batch = perf.batchSize;
+      }
+      if (perf.useMmap !== undefined) {
+        ollamaOptions.use_mmap = perf.useMmap;
+      }
+      if (perf.useMlock !== undefined) {
+        ollamaOptions.use_mlock = perf.useMlock;
+      }
+
+      // Use AbortController for timeout
+      const controller = new AbortController();
+      const timeout = perf.timeout || 120000; // 2 minutes default
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
       const response = await fetch(this.config.endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
+          model: model,
           prompt: `${this.getSystemPrompt()}\n\n${prompt}`,
-          max_tokens: this.config.maxTokens || 2000,
-          temperature: this.config.temperature || 0.1
-        })
+          stream: false,
+          options: ollamaOptions
+        }),
+        signal: controller.signal
       });
 
-      const data = await response.json() as { response?: string; content?: string };
-      return this.parseAIResponse(data.response || data.content || '', file);
-    } catch (error) {
-      logger.debug(`Local AI error: ${error}`);
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        logger.warn(`⚠️ Error del modelo local (${response.status}): ${errorText}`);
+        return { findings: [] };
+      }
+
+      const data = await response.json() as { response?: string; content?: string; message?: { content?: string } };
+      const content = data.response || data.content || data.message?.content || '';
+      
+      if (!content) {
+        logger.debug('El modelo local no devolvió respuesta');
+        return { findings: [] };
+      }
+
+      const result = this.parseAIResponse(content, file);
+
+      // Store in cache
+      if (perf.enableCache) {
+        const cacheKey = `${file.hash}-${this.config.model}`;
+        this.analysisCache.set(cacheKey, result);
+      }
+
+      return result;
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        logger.warn(`⚠️ Timeout analizando ${file.relativePath}`);
+      } else if (error.code === 'ECONNREFUSED') {
+        logger.warn('⚠️ No se puede conectar al servidor local. ¿Está Ollama ejecutándose?');
+        logger.info('💡 Inicia Ollama con: ollama serve');
+      } else {
+        logger.debug(`Local AI error: ${error.message || error}`);
+      }
       return { findings: [] };
     }
+  }
+
+  /**
+   * Analyze multiple files in parallel (for local models)
+   */
+  async analyzeParallel(files: ScannedFile[]): Promise<Map<string, AIAnalysisResult>> {
+    const results = new Map<string, AIAnalysisResult>();
+    const parallelRequests = this.config.performance?.parallelRequests || 1;
+
+    // Process in batches
+    for (let i = 0; i < files.length; i += parallelRequests) {
+      const batch = files.slice(i, i + parallelRequests);
+      const batchPromises = batch.map(async (file) => {
+        const result = await this.analyze(file);
+        return { path: file.relativePath, result };
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      for (const { path, result } of batchResults) {
+        results.set(path, result);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Clear the analysis cache
+   */
+  clearCache(): void {
+    this.analysisCache.clear();
+    logger.debug('🗑️ AI analysis cache cleared');
   }
 
   /**

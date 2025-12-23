@@ -1,0 +1,28 @@
+{
+    "name": "vulnerable-cpp-project",
+    "version": "1.0.0",
+    "description": "Test C++ project with dependencies",
+    "dependencies": [
+        "openssl",
+        "curl",
+        "zlib",
+        "boost",
+        {
+            "name": "fmt",
+            "version>=": "7.0.0"
+        },
+        {
+            "name": "nlohmann-json",
+            "version>=": "3.9.0"
+        },
+        "sqlite3",
+        "gtest"
+    ],
+    "default-features": true,
+    "features": {
+        "ssl": {
+            "description": "SSL support",
+            "dependencies": ["openssl"]
+        }
+    }
+}

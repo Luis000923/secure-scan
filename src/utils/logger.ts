@@ -1,6 +1,6 @@
 /**
- * Logger Utility
- * Winston-based logging for enterprise environments
+ * Utilidad de Logging
+ * Registro basado en Winston para entornos de producción
  */
 
 import winston from 'winston';
@@ -74,11 +74,11 @@ export function setLogLevel(level: string): void {
 }
 
 /**
- * Log scan start
+ * Registrar inicio de escaneo
  */
 export function logScanStart(projectPath: string): void {
   logger.info(chalk.cyan('═'.repeat(60)));
-  logger.info(chalk.cyan.bold('🔐 Secure-Scan - Enterprise SAST Tool'));
+  logger.info(chalk.cyan.bold('🔐 Secure-Scan - Herramienta SAST'));
   logger.info(chalk.cyan('═'.repeat(60)));
   logger.info(`📁 Scanning project: ${chalk.yellow(projectPath)}`);
   logger.info(chalk.gray('─'.repeat(60)));
@@ -95,8 +95,13 @@ export function logProgress(current: number, total: number, fileName: string): v
 
 /**
  * Log finding
+ * @param severity - The severity level of the finding
+ * @param title - Title/description of the finding
+ * @param file - File path where the finding was detected
+ * @param line - Line number of the finding
+ * @param category - Category of the finding (optional)
  */
-export function logFinding(severity: string, title: string, file: string, line: number): void {
+export function logFinding(severity: string, title: string, file: string, line: number, category?: string): void {
   const severityColors: Record<string, (str: string) => string> = {
     critical: chalk.bgRed.white,
     high: chalk.red,
@@ -106,7 +111,11 @@ export function logFinding(severity: string, title: string, file: string, line: 
   };
   
   const colorFn = severityColors[severity] || chalk.white;
-  logger.info(`${colorFn(`[${severity.toUpperCase()}]`)} ${title} at ${chalk.cyan(file)}:${chalk.yellow(line)}`);
+  
+  // Add MALWARE label if category is malware
+  const malwareLabel = category === 'malware' ? chalk.bgMagenta.white.bold(' 🦠 MALWARE ') + ' ' : '';
+  
+  logger.info(`${malwareLabel}${colorFn(`[${severity.toUpperCase()}]`)} ${title} at ${chalk.cyan(file)}:${chalk.yellow(line)}`);
 }
 
 /**

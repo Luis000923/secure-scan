@@ -11,6 +11,7 @@ import { ScanResult, Finding, Severity, FindingCategory, ReportGenerator } from 
 import { escapeHtml, formatDuration, getSeverityColor, getSeverityBadge } from '../utils';
 import { logger } from '../utils/logger';
 import { Language, getTranslations, Translations, defaultLanguage } from '../i18n';
+import { getAllAnalyzers } from '../analyzers';
 
 /**
  * HTML Report Generator Class
@@ -91,6 +92,18 @@ export class HtmlReportGenerator implements ReportGenerator {
     const malwareCount = result.findings.filter(f => f.category === FindingCategory.MALWARE).length;
     const vulnCount = result.findings.filter(f => f.category === FindingCategory.VULNERABILITY).length;
 
+    // Get unique files with malware
+    const malwareFindings = result.findings.filter(f => f.category === FindingCategory.MALWARE);
+    const malwareFilesSet = new Set(malwareFindings.map(f => f.location.file));
+    const malwareFiles = Array.from(malwareFilesSet);
+
+    // Get analyzer versions
+    const analyzers = getAllAnalyzers().map(a => ({
+      name: a.name,
+      version: a.version,
+      languages: a.languages.join(', ')
+    }));
+
     // Group findings by file
     const findingsByFile: Record<string, Finding[]> = {};
     for (const finding of result.findings) {
@@ -129,6 +142,10 @@ export class HtmlReportGenerator implements ReportGenerator {
       // Category counts
       malwareCount,
       vulnCount,
+      malwareFiles,
+      
+      // Analyzers
+      analyzers,
       
       // Findings
       findings: sortedFindings,
@@ -480,6 +497,67 @@ export class HtmlReportGenerator implements ReportGenerator {
       background: rgba(248, 81, 73, 0.2);
     }
 
+    .malware-files {
+      margin-top: 12px;
+      padding: 10px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 6px;
+    }
+
+    .malware-files ul {
+      margin: 8px 0 0 20px;
+      padding: 0;
+    }
+
+    .malware-files li {
+      margin: 4px 0;
+      font-family: monospace;
+      font-size: 13px;
+    }
+
+    .analyzers-info {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .analyzers-info h3 {
+      margin-bottom: 12px;
+      font-size: 16px;
+      color: var(--text-primary);
+    }
+
+    .analyzers-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .analyzer-item {
+      background: var(--bg-tertiary);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .analyzer-name {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .analyzer-version {
+      color: var(--accent-color);
+      font-family: monospace;
+    }
+
+    .analyzer-langs {
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
     .warning-icon {
       font-size: 24px;
     }
@@ -523,6 +601,14 @@ export class HtmlReportGenerator implements ReportGenerator {
       <div>
         <strong>{{t.malwareDetected}}</strong>
         <p>{{malwareDescriptionText}}</p>
+        <div class="malware-files">
+          <strong>{{t.affectedFiles}}:</strong>
+          <ul>
+            {{#each malwareFiles}}
+            <li>📄 {{this}}</li>
+            {{/each}}
+          </ul>
+        </div>
       </div>
     </div>
     {{/if}}
@@ -645,16 +731,40 @@ export class HtmlReportGenerator implements ReportGenerator {
             <div class="stat-label">{{t.info}}</div>
           </div>
           <div class="stat-item">
-            <div class="stat-value" style="color: var(--critical-color)">{{malwareCount}}</div>
+            <div class="stat-value" style="color: var(--critical-color)">🦠 {{malwareCount}}</div>
             <div class="stat-label">{{t.malware}}</div>
           </div>
         </div>
+        
+        {{#if analyzers.length}}
+        <div class="analyzers-info">
+          <h3>🔧 {{t.analyzersUsed}}</h3>
+          <div class="analyzers-grid">
+            {{#each analyzers}}
+            <div class="analyzer-item">
+              <span class="analyzer-name">{{name}}</span>
+              <span class="analyzer-version">v{{version}}</span>
+              <span class="analyzer-langs">({{languages}})</span>
+            </div>
+            {{/each}}
+          </div>
+        </div>
+        {{/if}}
       </div>
     </div>
   </main>
 
   <footer>
-    <p>{{t.generatedBy}} <strong>Secure-Scan</strong> - Enterprise SAST Tool</p>
+    <p>{{t.generatedBy}} <strong>Secure-Scan</strong> - Herramienta SAST</p>
+    <p>
+      <a href="https://github.com/Luis000923/secure-scan" target="_blank" style="color: var(--primary-color); text-decoration: none;">
+        🌐 GitHub Repository
+      </a>
+      &nbsp;|&nbsp;
+      <a href="https://www.npmjs.com/package/secure-scan" target="_blank" style="color: var(--primary-color); text-decoration: none;">
+        📦 npm Package
+      </a>
+    </p>
     <p>© {{currentYear}} - {{t.securityReport}}</p>
   </footer>
 

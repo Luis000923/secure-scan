@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Secure-Scan CLI
- * Enterprise Static Application Security Testing Tool
+ * Herramienta de Análisis Estático de Seguridad de Aplicaciones
  */
 
 import { Command } from 'commander';
@@ -10,24 +10,20 @@ import ora from 'ora';
 import * as path from 'path';
 import * as fs from 'fs';
 
-import { SecurityScanner } from '../core/securityScanner';
+import { SecurityScanner } from '../analyzers/core/securityScanner';
 import { ScanConfig, Severity, SupportedLanguage } from '../types';
 import { setLogLevel } from '../utils/logger';
 
-// Package info
-const packageJson = {
-  name: 'secure-scan',
-  version: '1.0.0',
-  description: 'Enterprise SAST Tool - Detect vulnerabilities and malicious code'
-};
+// Información del paquete
+const packageJson = require('../../package.json');
 
-// Create CLI program
+// Crear programa CLI
 const program = new Command();
 
 program
   .name('secure-scan')
   .version(packageJson.version)
-  .description(chalk.cyan('🔐 Secure-Scan - Enterprise Static Application Security Testing Tool'));
+  .description(chalk.cyan('🔐 Secure-Scan - Herramienta de Análisis Estático de Seguridad'));
 
 /**
  * Scan command
@@ -40,9 +36,10 @@ program
   .option('-e, --exclude <patterns>', 'Patrones a excluir separados por coma')
   .option('--min-severity <level>', 'Severidad mínima a reportar (info, low, medium, high, critical)', 'info')
   .option('--ai', 'Habilitar análisis con IA')
-  .option('--api-key <key>', 'API key para el proveedor de IA')
-  .option('--ai-provider <provider>', 'Proveedor de IA (openai, anthropic, local)', 'openai')
-  .option('--ai-model <model>', 'Modelo de IA a usar', 'gpt-4')
+  .option('--api-key <key>', 'API key para el proveedor de IA (auto-detecta OpenAI, Anthropic, Google)')
+  .option('--ai-provider <provider>', 'Proveedor de IA (openai, anthropic, google, gemini, local, auto)', 'auto')
+  .option('--ai-model <model>', 'Modelo de IA a usar (gpt-4o, gpt-4, gpt-3.5-turbo, claude-3-sonnet, gemini-1.5-flash, etc.)')
+  .option('--ai-endpoint <url>', 'URL del endpoint para IA local (default: http://localhost:11434/api/generate)')
   .option('-v, --verbose', 'Mostrar salida detallada')
   .option('--json', 'Mostrar resultados como JSON en stdout')
   .option('--max-file-size <bytes>', 'Tamaño máximo de archivo a escanear (en bytes)', '5242880')
@@ -84,6 +81,10 @@ program
       const reportLang = options.lang === 'en' ? 'en' : 'es';
 
       // Build config
+      // Default endpoint for local AI (Ollama)
+      const defaultLocalEndpoint = 'http://localhost:11434/api/generate';
+      const defaultLocalModel = 'codellama:7b-instruct';
+      
       const config: ScanConfig = {
         projectPath: resolvedPath,
         outputPath: options.output,
@@ -97,7 +98,8 @@ program
         aiConfig: options.ai ? {
           provider: options.aiProvider,
           apiKey: options.apiKey || process.env.OPENAI_API_KEY,
-          model: options.aiModel
+          model: options.aiModel || (options.aiProvider === 'local' ? defaultLocalModel : undefined),
+          endpoint: options.aiEndpoint || (options.aiProvider === 'local' ? defaultLocalEndpoint : undefined)
         } : undefined
       };
 
@@ -141,10 +143,16 @@ program
                          result.riskScore >= 40 ? chalk.yellow : chalk.green;
         console.log(`   📈 Puntuación de Riesgo: ${riskColor(result.riskScore + '/100')} (${result.riskLevel.toUpperCase()})`);
 
-        // Report location
+        // Report location - ensure correct extension is shown
         if (options.output) {
+          let reportPath = path.resolve(options.output);
+          const ext = path.extname(reportPath).toLowerCase();
+          // Add .html extension if no extension provided
+          if (ext === '') {
+            reportPath = `${reportPath}.html`;
+          }
           console.log('');
-          console.log(`   📄 Reporte guardado en: ${chalk.cyan(path.resolve(options.output))}`);
+          console.log(`   📄 Reporte guardado en: ${chalk.cyan(reportPath)}`);
         }
 
         console.log(chalk.cyan('═'.repeat(60)));
@@ -179,18 +187,126 @@ program
     }
 
     const defaultConfig = {
-      exclude: ['node_modules', 'dist', 'vendor', '.git'],
-      languages: ['javascript', 'typescript', 'python', 'php', 'java', 'c', 'cpp', 'csharp'],
-      minSeverity: 'low',
-      language: 'es',
+      "$schema": "https://raw.githubusercontent.com/Sobdev/secure-scan/main/schema.json",
+      version: "1.0.0",
+      
+      scan: {
+        languages: [
+          "javascript",
+          "typescript",
+          "python",
+          "php",
+          "java",
+          "c",
+          "cpp",
+          "csharp",
+          "dockerfile",
+          "yaml",
+          "terraform"
+        ],
+        exclude: [
+          "node_modules",
+          "dist",
+          "vendor",
+          ".git"
+        ],
+        include: [],
+        maxFileSize: 1048576,
+        maxFiles: 10000,
+        followSymlinks: false
+      },
+      
+      rules: {
+        enabled: true,
+        categories: {
+          vulnerability: true,
+          malware: true
+        },
+        severity: {
+          critical: true,
+          high: true,
+          medium: true,
+          low: true,
+          info: false
+        },
+        customRulesPath: null,
+        disabledRules: []
+      },
+      
       ai: {
         enabled: false,
-        provider: 'openai',
-        model: 'gpt-4'
+        provider: "local",
+        model: "codellama:7b-instruct",
+        apiKey: null,
+        endpoint: "http://localhost:11434/api/generate",
+        enhanceFindings: true,
+        generateSummary: true,
+        maxTokens: 4096,
+        temperature: 0.1,
+        performance: {
+          parallelRequests: 2,
+          numGpuLayers: -1,
+          numThreads: 8,
+          contextSize: 4096,
+          batchSize: 512,
+          enableCache: true,
+          useMmap: true,
+          useMlock: false,
+          timeout: 120000
+        }
       },
-      rules: {
-        disabled: [],
-        custom: []
+      
+      output: {
+        format: "html",
+        path: "./secure-scan-report",
+        filename: "security-report",
+        includeSource: true,
+        groupBy: "severity",
+        sortBy: "severity"
+      },
+      
+      scoring: {
+        enabled: true,
+        weights: {
+          critical: 100,
+          high: 50,
+          medium: 20,
+          low: 5,
+          info: 1
+        },
+        categoryMultipliers: {
+          vulnerability: 1.0,
+          malware: 1.5
+        },
+        thresholds: {
+          fail: 70,
+          warn: 40
+        }
+      },
+      
+      performance: {
+        parallelism: 4,
+        timeout: 300000,
+        cacheEnabled: true,
+        cachePath: ".secure-scan-cache"
+      },
+      
+      integrations: {
+        git: {
+          enabled: true,
+          scanOnlyChanged: false,
+          baseBranch: "main"
+        },
+        sarif: {
+          enabled: false,
+          path: "./results.sarif"
+        }
+      },
+      
+      logging: {
+        level: "info",
+        file: null,
+        colors: true
       }
     };
 
@@ -236,23 +352,23 @@ program
   });
 
 /**
- * Version command
+ * Comando de versión
  */
 program
   .command('version')
   .description('Mostrar información de versión')
   .action(() => {
     console.log(chalk.cyan(`\n🔐 Secure-Scan v${packageJson.version}`));
-    console.log(chalk.gray('Herramienta Empresarial de Análisis Estático de Seguridad (SAST)\n'));
+    console.log(chalk.gray('Herramienta de Análisis Estático de Seguridad (SAST)\n'));
   });
 
-// Parse arguments
+// Procesar argumentos
 program.parse();
 
-// Show help if no command
+// Mostrar ayuda si no hay comando
 if (process.argv.length === 2) {
   console.log(chalk.cyan(`
-  🔐 Secure-Scan - Herramienta Empresarial SAST
+  🔐 Secure-Scan - Herramienta SAST
   
   Detecta vulnerabilidades y código malicioso en tus proyectos.
   

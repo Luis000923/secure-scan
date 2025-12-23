@@ -1,0 +1,10 @@
+secure-scan (1.2.4-1) unstable; urgency=medium
+
+  * Initial release
+  * Configuración init mejorada con archivo completo
+  * Soporte para múltiples lenguajes: JS, TS, Python, PHP, Java, C/C++, C#
+  * Detección de vulnerabilidades y malware
+  * Análisis de dependencias
+  * Integración con IA local (Ollama)
+
+ -- Sobdev <tu-email@ejemplo.com>  Mon, 23 Dec 2024 12:00:00 +0000
