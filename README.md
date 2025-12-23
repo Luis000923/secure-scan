@@ -51,25 +51,33 @@ secure-scan/
 
 ### Opción 1: Instalación Global (Recomendada)
 
-```bash
 # PUEDEN DESCARGARLO USANDO:
-npm install secure-scan
+```bash
+npm install -g secure-scan
+```
 #Asi se evitan usar la clonacion del repositorio
 
-##Eliminar la herramienta
-npm install -g secure-scan
-
+#Eliminar la herramienta
+```bash
+npm uninstall secure-scan
+```
 # Clonar el repositorio
+```bash
 git clone https://github.com/your-org/secure-scan.git
 cd secure-scan
+```
 
 # Instalar dependencias y compilar
+```bash
 npm install
+```
 
 # Instalar globalmente
+```bash
 npm link
-
+```
 # Verificar instalación
+```bash
 secure-scan -V
 secure-scan --version
 ```
@@ -87,8 +95,10 @@ secure-scan scan "C:\Users\TuUsuario\Proyectos\mi-proyecto"
 
 #puede personalizar sus escaneos con
 secure-scan init
+```
 
-#comando sugerido 
+#comando sugerido
+```bash
 secure-scan scan "ruta-proyecto-analizar" -v --ai --ai-provider local -o "ruta-resultado-escaneo\nombre-resultado"
 ```
 
