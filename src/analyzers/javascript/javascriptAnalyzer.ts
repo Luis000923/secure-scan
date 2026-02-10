@@ -14,15 +14,15 @@
  */
 
 import { BaseAnalyzer } from '../base';
-import { 
-  ScannedFile, 
-  Finding, 
-  Rule, 
-  SupportedLanguage, 
-  Severity, 
-  ThreatType, 
+import {
+  ScannedFile,
+  Finding,
+  Rule,
+  SupportedLanguage,
+  Severity,
+  ThreatType,
   FindingCategory,
-  SecurityStandard 
+  SecurityStandard
 } from '../../types';
 import { generateId, extractCodeContext, looksObfuscated, calculateEntropy } from '../../utils';
 import { getStandardsForThreat } from '../../rules/standards';
@@ -64,8 +64,23 @@ const DEFAULT_OPTIONS: JSAnalyzerOptions = {
   enablePackageAnalysis: true,
   maxFileSize: 5 * 1024 * 1024, // 5MB
   fileTimeout: 30000, // 30 seconds
-  minConfidence: 50
+  minConfidence: 60
 };
+
+/**
+ * Placeholder/example values that should not trigger hardcoded credential alerts
+ */
+const CREDENTIAL_PLACEHOLDER_PATTERNS = /^(?:password123|changeme|xxx+|TODO|your[-_]?(?:api[-_]?key|secret|password|token)[-_]?here|example|test|dummy|placeholder|CHANGE[-_]?ME|replace[-_]?me|insert[-_]?here|\*+|<.*>)$/i;
+
+/**
+ * Lines that are type definitions / schemas and should not trigger credential alerts
+ */
+const SCHEMA_LINE_PATTERNS = /(?:type\s|interface\s|schema|validator|joi\.|yup\.|zod\.|PropTypes|\bdescribe\s*\(|\@param|\@type|\@property)/i;
+
+/**
+ * Patterns indicating vendor/minified/bundled file paths
+ */
+const VENDOR_PATH_PATTERNS = /(?:node_modules|vendor|dist|build|bundle|\bmin\b|\.min\.)/i;
 
 /**
  * Vulnerability patterns for regex-based fallback detection
@@ -90,37 +105,37 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
   // === CODE EXECUTION ===
   {
     id: 'JS-EXEC-001',
-    name: 'eval() Usage',
+    name: 'Uso de eval()',
     pattern: /\beval\s*\(\s*(?!['"`])/g,
     severity: Severity.CRITICAL,
     threatType: ThreatType.COMMAND_INJECTION,
     category: FindingCategory.VULNERABILITY,
-    description: 'Use of eval() with dynamic content can lead to code injection.',
-    remediation: 'Avoid eval(). Use JSON.parse() for JSON data or safer alternatives.',
+    description: 'El uso de eval() con contenido dinámico puede conducir a la inyección de código.',
+    remediation: 'Evite eval(). Use JSON.parse() para datos JSON o alternativas más seguras.',
     confidence: 85,
     tags: ['injection', 'rce', 'owasp-a03']
   },
   {
     id: 'JS-EXEC-002',
-    name: 'Function Constructor',
+    name: 'Constructor de Función',
     pattern: /\bnew\s+Function\s*\(/g,
     severity: Severity.CRITICAL,
     threatType: ThreatType.COMMAND_INJECTION,
     category: FindingCategory.VULNERABILITY,
-    description: 'new Function() is equivalent to eval() and can execute arbitrary code.',
-    remediation: 'Use predefined functions instead of dynamically creating them.',
+    description: 'new Function() es equivalente a eval() y puede ejecutar código arbitrario.',
+    remediation: 'Use funciones predefinidas en lugar de crearlas dinámicamente.',
     confidence: 85,
     tags: ['injection', 'rce', 'owasp-a03']
   },
   {
     id: 'JS-EXEC-003',
-    name: 'setTimeout/setInterval with String',
+    name: 'setTimeout/setInterval con Cadena',
     pattern: /\bset(?:Timeout|Interval)\s*\(\s*['"`][^'"`]+['"`]/g,
     severity: Severity.HIGH,
     threatType: ThreatType.COMMAND_INJECTION,
     category: FindingCategory.VULNERABILITY,
-    description: 'setTimeout/setInterval with string argument acts like eval().',
-    remediation: 'Pass a function reference instead of a string.',
+    description: 'setTimeout/setInterval con argumento de cadena actúa como eval().',
+    remediation: 'Pase una referencia de función en lugar de una cadena.',
     confidence: 80,
     tags: ['injection', 'owasp-a03']
   },
@@ -128,25 +143,25 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
   // === COMMAND INJECTION ===
   {
     id: 'JS-CMD-001',
-    name: 'child_process exec()',
+    name: 'exec() de child_process',
     pattern: /(?:child_process\.)?exec\s*\(\s*(?!['"`])/g,
     severity: Severity.CRITICAL,
     threatType: ThreatType.COMMAND_INJECTION,
     category: FindingCategory.VULNERABILITY,
-    description: 'exec() with dynamic command string is vulnerable to command injection.',
-    remediation: 'Use execFile() with argument array instead of exec().',
+    description: 'exec() con una cadena de comando dinámica es vulnerable a la inyección de comandos.',
+    remediation: 'Use execFile() con un array de argumentos en lugar de exec().',
     confidence: 80,
     tags: ['injection', 'rce', 'owasp-a03']
   },
   {
     id: 'JS-CMD-002',
-    name: 'spawn with shell: true',
+    name: 'spawn con shell: true',
     pattern: /spawn\s*\([^)]*shell\s*:\s*true/g,
     severity: Severity.HIGH,
     threatType: ThreatType.COMMAND_INJECTION,
     category: FindingCategory.VULNERABILITY,
-    description: 'spawn() with shell option is vulnerable to command injection.',
-    remediation: 'Remove shell: true and pass arguments as an array.',
+    description: 'spawn() con la opción shell es vulnerable a la inyección de comandos.',
+    remediation: 'Elimine shell: true y pase los argumentos como un array.',
     confidence: 85,
     tags: ['injection', 'rce', 'owasp-a03']
   },
@@ -154,13 +169,13 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
   // === XSS VULNERABILITIES ===
   {
     id: 'JS-XSS-001',
-    name: 'innerHTML Assignment',
+    name: 'Asignación innerHTML',
     pattern: /\.innerHTML\s*=\s*(?!['"`]<)/g,
     severity: Severity.HIGH,
     threatType: ThreatType.XSS,
     category: FindingCategory.VULNERABILITY,
-    description: 'Direct innerHTML assignment with dynamic content enables XSS.',
-    remediation: 'Use textContent for text, or sanitize with DOMPurify.',
+    description: 'La asignación directa de innerHTML con contenido dinámico permite XSS.',
+    remediation: 'Use textContent para texto, o sanitice con DOMPurify.',
     confidence: 75,
     tags: ['xss', 'dom', 'owasp-a03']
   },
@@ -171,8 +186,8 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
     severity: Severity.HIGH,
     threatType: ThreatType.XSS,
     category: FindingCategory.VULNERABILITY,
-    description: 'document.write() with dynamic content is vulnerable to XSS.',
-    remediation: 'Use DOM manipulation methods like createElement() and textContent.',
+    description: 'document.write() con contenido dinámico es vulnerable a XSS.',
+    remediation: 'Use métodos de manipulación del DOM como createElement() y textContent.',
     confidence: 80,
     tags: ['xss', 'dom', 'owasp-a03']
   },
@@ -183,8 +198,8 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
     severity: Severity.HIGH,
     threatType: ThreatType.XSS,
     category: FindingCategory.VULNERABILITY,
-    description: 'insertAdjacentHTML() with unsanitized content enables XSS.',
-    remediation: 'Sanitize HTML content with DOMPurify before insertion.',
+    description: 'insertAdjacentHTML() con contenido no sanitizado permite XSS.',
+    remediation: 'Sanitice el contenido HTML con DOMPurify antes de la inserción.',
     confidence: 75,
     tags: ['xss', 'dom', 'owasp-a03']
   },
@@ -195,8 +210,8 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
     severity: Severity.HIGH,
     threatType: ThreatType.XSS,
     category: FindingCategory.VULNERABILITY,
-    description: 'jQuery .html() with dynamic content is vulnerable to XSS.',
-    remediation: 'Use .text() for text content or sanitize before .html().',
+    description: 'jQuery .html() con contenido dinámico es vulnerable a XSS.',
+    remediation: 'Use .text() para contenido de texto o sanitice antes de .html().',
     confidence: 70,
     tags: ['xss', 'jquery', 'owasp-a03']
   },
@@ -204,13 +219,13 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
   // === PROTOTYPE POLLUTION ===
   {
     id: 'JS-PP-001',
-    name: '__proto__ Access',
+    name: 'Acceso a __proto__',
     pattern: /\[['"`]?__proto__['"`]?\]|\.__proto__\b/g,
     severity: Severity.HIGH,
     threatType: ThreatType.DANGEROUS_FUNCTION,
     category: FindingCategory.VULNERABILITY,
-    description: 'Direct __proto__ access can lead to prototype pollution.',
-    remediation: 'Use Object.create(null) for safe objects or validate keys.',
+    description: 'El acceso directo a __proto__ puede conducir a la polución de prototipos.',
+    remediation: 'Use Object.create(null) para objetos seguros o valide las claves.',
     confidence: 85,
     tags: ['prototype-pollution', 'owasp-a03']
   },
@@ -233,8 +248,8 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
     severity: Severity.MEDIUM,
     threatType: ThreatType.DANGEROUS_FUNCTION,
     category: FindingCategory.VULNERABILITY,
-    description: 'Accessing constructor.prototype may indicate prototype pollution.',
-    remediation: 'Validate and sanitize any dynamic property access.',
+    description: 'El acceso a constructor.prototype puede indicar una polución de prototipos.',
+    remediation: 'Valide y sanitice cualquier acceso dinámico a propiedades.',
     confidence: 70,
     tags: ['prototype-pollution', 'owasp-a03']
   },
@@ -242,13 +257,13 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
   // === INSECURE RANDOMNESS ===
   {
     id: 'JS-RAND-001',
-    name: 'Math.random() for Security',
+    name: 'Math.random() para Seguridad',
     pattern: /(?:token|secret|key|password|salt|nonce|iv)\s*[=:]\s*[^;{]*Math\.random/gi,
     severity: Severity.HIGH,
     threatType: ThreatType.WEAK_RANDOM,
     category: FindingCategory.VULNERABILITY,
-    description: 'Math.random() is not cryptographically secure.',
-    remediation: 'Use crypto.randomBytes() or crypto.getRandomValues().',
+    description: 'Math.random() no es criptográficamente seguro.',
+    remediation: 'Use crypto.randomBytes() o crypto.getRandomValues().',
     confidence: 80,
     tags: ['crypto', 'random', 'owasp-a02']
   },
@@ -256,37 +271,37 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
   // === HARDCODED CREDENTIALS ===
   {
     id: 'JS-CRED-001',
-    name: 'Hardcoded Password',
+    name: 'Contraseña Hardcoded',
     pattern: /(?:password|passwd|pwd)\s*[=:]\s*['"`][^'"`]{6,}['"`]/gi,
     severity: Severity.HIGH,
     threatType: ThreatType.HARDCODED_CREDENTIALS,
     category: FindingCategory.VULNERABILITY,
-    description: 'Hardcoded password detected in source code.',
-    remediation: 'Use environment variables or a secrets manager.',
+    description: 'Se detectó una contraseña hardcoded en el código fuente.',
+    remediation: 'Use variables de entorno o un gestor de secretos.',
     confidence: 75,
     tags: ['credentials', 'secrets', 'owasp-a07']
   },
   {
     id: 'JS-CRED-002',
-    name: 'Hardcoded API Key',
+    name: 'Clave de API Hardcoded',
     pattern: /(?:api[_-]?key|apikey)\s*[=:]\s*['"`][a-zA-Z0-9_-]{20,}['"`]/gi,
     severity: Severity.HIGH,
     threatType: ThreatType.HARDCODED_CREDENTIALS,
     category: FindingCategory.VULNERABILITY,
-    description: 'Hardcoded API key detected in source code.',
-    remediation: 'Use environment variables or a secrets manager.',
+    description: 'Se detectó una clave de API hardcoded en el código fuente.',
+    remediation: 'Use variables de entorno o un gestor de secretos.',
     confidence: 80,
     tags: ['credentials', 'secrets', 'owasp-a07']
   },
   {
     id: 'JS-CRED-003',
-    name: 'Hardcoded Secret/Token',
+    name: 'Secreto/Token Hardcoded',
     pattern: /(?:secret|token|auth)\s*[=:]\s*['"`][a-zA-Z0-9_-]{20,}['"`]/gi,
     severity: Severity.HIGH,
     threatType: ThreatType.HARDCODED_CREDENTIALS,
     category: FindingCategory.VULNERABILITY,
-    description: 'Hardcoded secret or token detected in source code.',
-    remediation: 'Use environment variables or a secrets manager.',
+    description: 'Se detectó un secreto o token hardcoded en el código fuente.',
+    remediation: 'Use variables de entorno o un gestor de secretos.',
     confidence: 75,
     tags: ['credentials', 'secrets', 'owasp-a07']
   },
@@ -294,37 +309,37 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
   // === INSECURE CRYPTO ===
   {
     id: 'JS-CRYPTO-001',
-    name: 'MD5 Usage',
+    name: 'Uso de MD5',
     pattern: /(?:createHash|crypto)\s*\(\s*['"`]md5['"`]\s*\)/gi,
     severity: Severity.MEDIUM,
     threatType: ThreatType.INSECURE_CRYPTO,
     category: FindingCategory.VULNERABILITY,
-    description: 'MD5 is cryptographically broken and should not be used.',
-    remediation: 'Use SHA-256 or stronger for hashing.',
+    description: 'MD5 está criptográficamente roto y no debe ser usado.',
+    remediation: 'Use SHA-256 o superior para hashing.',
     confidence: 90,
     tags: ['crypto', 'hash', 'owasp-a02']
   },
   {
     id: 'JS-CRYPTO-002',
-    name: 'SHA1 Usage',
+    name: 'Uso de SHA1',
     pattern: /(?:createHash|crypto)\s*\(\s*['"`]sha1['"`]\s*\)/gi,
     severity: Severity.MEDIUM,
     threatType: ThreatType.INSECURE_CRYPTO,
     category: FindingCategory.VULNERABILITY,
-    description: 'SHA-1 is deprecated for cryptographic use.',
-    remediation: 'Use SHA-256 or stronger for hashing.',
+    description: 'SHA-1 está deprecado para uso criptográfico.',
+    remediation: 'Use SHA-256 o superior para hashing.',
     confidence: 85,
     tags: ['crypto', 'hash', 'owasp-a02']
   },
   {
     id: 'JS-CRYPTO-003',
-    name: 'DES/3DES Usage',
+    name: 'Uso de DES/3DES',
     pattern: /(?:createCipher|createDecipher)\s*\(\s*['"`](?:des|3des|des-ede3)['"`]/gi,
     severity: Severity.HIGH,
     threatType: ThreatType.INSECURE_CRYPTO,
     category: FindingCategory.VULNERABILITY,
-    description: 'DES and 3DES are deprecated encryption algorithms.',
-    remediation: 'Use AES-256-GCM for encryption.',
+    description: 'DES y 3DES son algoritmos de cifrado obsoletos.',
+    remediation: 'Use AES-256-GCM para el cifrado.',
     confidence: 90,
     tags: ['crypto', 'encryption', 'owasp-a02']
   },
@@ -332,13 +347,13 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
   // === PATH TRAVERSAL ===
   {
     id: 'JS-PATH-001',
-    name: 'Path Traversal in File Read',
+    name: 'Salto de Directorio en Lectura de Archivo',
     pattern: /(?:readFile|readFileSync|createReadStream)\s*\([^)]*(?:req\.(?:body|query|params)|process\.argv)/gi,
     severity: Severity.HIGH,
     threatType: ThreatType.PATH_TRAVERSAL,
     category: FindingCategory.VULNERABILITY,
-    description: 'File read with user-controlled path enables path traversal.',
-    remediation: 'Validate paths with path.resolve() and check against base directory.',
+    description: 'La lectura de archivos con una ruta controlada por el usuario permite el salto de directorio.',
+    remediation: 'Valide las rutas con path.resolve() y verifíquelas contra el directorio base.',
     confidence: 80,
     tags: ['path-traversal', 'file', 'owasp-a01']
   },
@@ -346,25 +361,25 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
   // === SQL INJECTION ===
   {
     id: 'JS-SQL-001',
-    name: 'SQL Query Concatenation',
+    name: 'Concatenación de Consulta SQL',
     pattern: /\.query\s*\(\s*['"`](?:SELECT|INSERT|UPDATE|DELETE)[^'"]*\+/gi,
     severity: Severity.CRITICAL,
     threatType: ThreatType.SQL_INJECTION,
     category: FindingCategory.VULNERABILITY,
-    description: 'SQL query with string concatenation is vulnerable to injection.',
-    remediation: 'Use parameterized queries or prepared statements.',
+    description: 'Una consulta SQL con concatenación de cadenas es vulnerable a la inyección.',
+    remediation: 'Use consultas parametrizadas o sentencias preparadas.',
     confidence: 85,
     tags: ['sqli', 'injection', 'owasp-a03']
   },
   {
     id: 'JS-SQL-002',
-    name: 'SQL Template Literal',
+    name: 'Template Literal SQL',
     pattern: /\.query\s*\(\s*`(?:SELECT|INSERT|UPDATE|DELETE)[^`]*\$\{/gi,
     severity: Severity.CRITICAL,
     threatType: ThreatType.SQL_INJECTION,
     category: FindingCategory.VULNERABILITY,
-    description: 'SQL query with template literal interpolation is vulnerable.',
-    remediation: 'Use parameterized queries or prepared statements.',
+    description: 'Una consulta SQL con interpolación de template literal es vulnerable.',
+    remediation: 'Use consultas parametrizadas o sentencias preparadas.',
     confidence: 85,
     tags: ['sqli', 'injection', 'owasp-a03']
   },
@@ -372,13 +387,13 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
   // === SSRF ===
   {
     id: 'JS-SSRF-001',
-    name: 'SSRF in fetch()',
+    name: 'SSRF en fetch()',
     pattern: /fetch\s*\(\s*(?:req\.(?:body|query|params)|`[^`]*\$\{)/gi,
     severity: Severity.HIGH,
     threatType: ThreatType.SECURITY_MISCONFIGURATION,
     category: FindingCategory.VULNERABILITY,
-    description: 'fetch() with user-controlled URL enables SSRF attacks.',
-    remediation: 'Validate and whitelist URLs before making requests.',
+    description: 'fetch() con una URL controlada por el usuario permite ataques SSRF.',
+    remediation: 'Valide y ponga en lista blanca las URLs antes de realizar solicitudes.',
     confidence: 75,
     tags: ['ssrf', 'owasp-a10']
   },
@@ -386,37 +401,37 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
   // === INSECURE CONFIGURATION ===
   {
     id: 'JS-CONFIG-001',
-    name: 'CORS Wildcard',
+    name: 'Comodín en CORS',
     pattern: /(?:cors|Access-Control-Allow-Origin)\s*[=:]\s*['"*]/gi,
     severity: Severity.MEDIUM,
     threatType: ThreatType.SECURITY_MISCONFIGURATION,
     category: FindingCategory.VULNERABILITY,
-    description: 'CORS with wildcard origin allows any domain to access the API.',
-    remediation: 'Specify allowed origins explicitly.',
+    description: 'CORS con origen comodín permite que cualquier dominio acceda a la API.',
+    remediation: 'Especifique los orígenes permitidos explícitamente.',
     confidence: 80,
     tags: ['cors', 'config', 'owasp-a05']
   },
   {
     id: 'JS-CONFIG-002',
-    name: 'Disabled CSRF Protection',
+    name: 'Protección CSRF Deshabilitada',
     pattern: /csrf\s*:\s*false|csrfProtection\s*=\s*false/gi,
     severity: Severity.HIGH,
     threatType: ThreatType.CSRF,
     category: FindingCategory.VULNERABILITY,
-    description: 'CSRF protection is explicitly disabled.',
-    remediation: 'Enable CSRF protection for state-changing operations.',
+    description: 'La protección CSRF está explícitamente deshabilitada.',
+    remediation: 'Habilite la protección CSRF para operaciones que cambian el estado.',
     confidence: 90,
     tags: ['csrf', 'config', 'owasp-a05']
   },
   {
     id: 'JS-CONFIG-003',
-    name: 'Insecure Cookie Settings',
+    name: 'Configuración de Cookies Insegura',
     pattern: /(?:secure|httpOnly)\s*:\s*false/gi,
     severity: Severity.MEDIUM,
     threatType: ThreatType.SECURITY_MISCONFIGURATION,
     category: FindingCategory.VULNERABILITY,
-    description: 'Cookie security flags are explicitly disabled.',
-    remediation: 'Set secure: true and httpOnly: true for session cookies.',
+    description: 'Los flags de seguridad de las cookies están explícitamente deshabilitados.',
+    remediation: 'Establezca secure: true y httpOnly: true para las cookies de sesión.',
     confidence: 85,
     tags: ['cookie', 'config', 'owasp-a05']
   },
@@ -424,25 +439,25 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
   // === POSTMESSAGE VULNERABILITIES ===
   {
     id: 'JS-PM-001',
-    name: 'postMessage Wildcard Origin',
+    name: 'Origen Comodín en postMessage',
     pattern: /postMessage\s*\([^)]+,\s*['"]\*['"]\s*\)/g,
     severity: Severity.MEDIUM,
     threatType: ThreatType.SECURITY_MISCONFIGURATION,
     category: FindingCategory.VULNERABILITY,
-    description: 'postMessage with "*" origin can leak data to any origin.',
-    remediation: 'Specify the target origin explicitly.',
+    description: 'postMessage con origen "*" puede filtrar datos a cualquier origen.',
+    remediation: 'Especifique el origen de destino explícitamente.',
     confidence: 90,
     tags: ['postmessage', 'origin', 'owasp-a05']
   },
   {
     id: 'JS-PM-002',
-    name: 'Missing Origin Check',
+    name: 'Falta Verificación de Origen',
     pattern: /addEventListener\s*\(\s*['"`]message['"`][^}]*(?:eval|innerHTML|document\.write)/g,
     severity: Severity.HIGH,
     threatType: ThreatType.XSS,
     category: FindingCategory.VULNERABILITY,
-    description: 'Message event handler without origin check enables XSS.',
-    remediation: 'Always validate event.origin before processing messages.',
+    description: 'El manejador de eventos message sin verificación de origen permite XSS.',
+    remediation: 'Valide siempre event.origin antes de procesar mensajes.',
     confidence: 75,
     tags: ['postmessage', 'xss', 'owasp-a03']
   },
@@ -450,25 +465,25 @@ const VULNERABILITY_PATTERNS: VulnerabilityPattern[] = [
   // === DANGEROUS PATTERNS ===
   {
     id: 'JS-DANGER-001',
-    name: 'debugger Statement',
+    name: 'Sentencia debugger',
     pattern: /\bdebugger\s*;/g,
     severity: Severity.LOW,
     threatType: ThreatType.SECURITY_MISCONFIGURATION,
     category: FindingCategory.CODE_SMELL,
-    description: 'debugger statement should be removed in production.',
-    remediation: 'Remove debugger statements before deployment.',
+    description: 'La sentencia debugger debe eliminarse en producción.',
+    remediation: 'Elimine las sentencias debugger antes del despliegue.',
     confidence: 100,
     tags: ['debug', 'cleanup']
   },
   {
     id: 'JS-DANGER-002',
-    name: 'console.log in Production',
+    name: 'console.log en Producción',
     pattern: /console\.(?:log|debug|trace)\s*\([^)]*(?:password|secret|token|key)/gi,
     severity: Severity.MEDIUM,
     threatType: ThreatType.INFORMATION_DISCLOSURE,
     category: FindingCategory.VULNERABILITY,
-    description: 'Logging sensitive data may expose credentials.',
-    remediation: 'Remove or redact sensitive data from logs.',
+    description: 'Registrar datos sensibles puede exponer credenciales.',
+    remediation: 'Elimine o redacte los datos sensibles de los registros.',
     confidence: 70,
     tags: ['logging', 'secrets', 'owasp-a09']
   }
@@ -487,14 +502,14 @@ export class JavaScriptAnalyzer extends BaseAnalyzer {
   private astUtils: ASTUtils;
   private malwareDetector: MalwareDetector;
   private packageJsonAnalyzer: PackageJsonAnalyzer;
-  
+
   // Configuration
   private options: JSAnalyzerOptions;
 
   constructor(options: JSAnalyzerOptions = {}) {
     super();
     this.options = { ...DEFAULT_OPTIONS, ...options };
-    
+
     // Initialize specialized analyzers
     this.taintAnalyzer = new TaintAnalyzer();
     this.astUtils = new ASTUtils();
@@ -521,6 +536,12 @@ export class JavaScriptAnalyzer extends BaseAnalyzer {
       // Skip files that are too large
       if (file.size > this.options.maxFileSize!) {
         logger.warn(`Skipping ${file.relativePath}: file too large (${file.size} bytes)`);
+        return findings;
+      }
+
+      // Skip minified/vendor files (high avg line length + vendor path)
+      if (this.isMinifiedOrVendor(file)) {
+        logger.debug(`Skipping ${file.relativePath}: minified or vendor file`);
         return findings;
       }
 
@@ -597,17 +618,36 @@ export class JavaScriptAnalyzer extends BaseAnalyzer {
    */
   private async runPatternAnalysis(file: ScannedFile): Promise<Finding[]> {
     const findings: Finding[] = [];
+    const lines = file.content.split('\n');
 
     for (const vuln of VULNERABILITY_PATTERNS) {
       // Reset regex state
       vuln.pattern.lastIndex = 0;
-      
+
       let match;
       while ((match = vuln.pattern.exec(file.content)) !== null) {
         // Find line number
         const beforeMatch = file.content.substring(0, match.index);
         const lineNum = beforeMatch.split('\n').length;
-        
+        const currentLine = lines[lineNum - 1] || '';
+
+        // FP reduction: skip matches inside comments
+        if (this.isInsideComment(currentLine, file.content, match.index)) {
+          continue;
+        }
+
+        // FP reduction: smarter hardcoded credential detection
+        if (vuln.threatType === ThreatType.HARDCODED_CREDENTIALS) {
+          if (this.isCredentialFalsePositive(currentLine, match[0])) {
+            continue;
+          }
+        }
+
+        // FP reduction: context-aware innerHTML/XSS detection
+        if (vuln.id === 'JS-XSS-001' && this.isXSSFalsePositive(currentLine)) {
+          continue;
+        }
+
         const context = extractCodeContext(file.content, lineNum, 2);
 
         findings.push({
@@ -687,7 +727,7 @@ export class JavaScriptAnalyzer extends BaseAnalyzer {
 
     try {
       const flows = this.taintAnalyzer.analyze(file.content, file.relativePath);
-      
+
       for (const flow of flows) {
         findings.push(this.taintFlowToFinding(flow, file));
       }
@@ -706,7 +746,7 @@ export class JavaScriptAnalyzer extends BaseAnalyzer {
 
     try {
       const matches = this.malwareDetector.scan(file.content, file.relativePath);
-      
+
       for (const match of matches) {
         findings.push(this.malwareMatchToFinding(match, file));
       }
@@ -729,7 +769,7 @@ export class JavaScriptAnalyzer extends BaseAnalyzer {
 
     try {
       const pkgFindings = this.packageJsonAnalyzer.analyze(file.content, file.relativePath);
-      
+
       for (const finding of pkgFindings) {
         findings.push(this.packageFindingToFinding(finding, file));
       }
@@ -748,7 +788,7 @@ export class JavaScriptAnalyzer extends BaseAnalyzer {
 
     if (looksObfuscated(file.content)) {
       const entropy = calculateEntropy(file.content);
-      
+
       findings.push({
         id: generateId(),
         title: 'Heavily Obfuscated Code',
@@ -846,7 +886,7 @@ export class JavaScriptAnalyzer extends BaseAnalyzer {
   private taintFlowToFinding(flow: TaintFlow, file: ScannedFile): Finding {
     const sourceDesc = TaintAnalyzer.getSourceDescription(flow.source.type);
     const sinkInfo = TaintAnalyzer.getSinkInfo(flow.sink.type);
-    
+
     const context = extractCodeContext(file.content, flow.sink.line, 2);
 
     // Build detailed description with flow path
@@ -946,10 +986,10 @@ export class JavaScriptAnalyzer extends BaseAnalyzer {
    */
   private deduplicateFindings(findings: Finding[]): Finding[] {
     const seen = new Map<string, Finding>();
-    
+
     for (const finding of findings) {
       const key = `${finding.location.file}:${finding.location.startLine}:${finding.threatType}`;
-      
+
       if (!seen.has(key)) {
         seen.set(key, finding);
       } else {
@@ -960,7 +1000,6 @@ export class JavaScriptAnalyzer extends BaseAnalyzer {
         }
       }
     }
-    
     return Array.from(seen.values());
   }
 
@@ -969,6 +1008,74 @@ export class JavaScriptAnalyzer extends BaseAnalyzer {
    */
   private filterByConfidence(findings: Finding[]): Finding[] {
     return findings.filter(f => f.confidence >= this.options.minConfidence!);
+  }
+
+  // =========================================================================
+  // FALSE POSITIVE REDUCTION HELPERS
+  // =========================================================================
+
+  /**
+   * Check if a match position is inside a comment (// or block comment)
+   */
+  private isInsideComment(line: string, fullContent: string, matchIndex: number): boolean {
+    const trimmed = line.trimStart();
+    // Single-line comment
+    if (trimmed.startsWith('//')) return true;
+    // Line is inside a block comment: check if there's an unclosed /* before match
+    const before = fullContent.substring(0, matchIndex);
+    const lastOpen = before.lastIndexOf('/*');
+    const lastClose = before.lastIndexOf('*/');
+    if (lastOpen > lastClose) return true;
+    // JSDoc or block comment line
+    if (trimmed.startsWith('*') || trimmed.startsWith('/**')) return true;
+    return false;
+  }
+
+  /**
+   * Check if a hardcoded credential match is a false positive
+   */
+  private isCredentialFalsePositive(line: string, matchedText: string): boolean {
+    // Skip type definitions, schemas, validators
+    if (SCHEMA_LINE_PATTERNS.test(line)) return true;
+
+    // Extract the quoted value from the match
+    const valueMatch = matchedText.match(/[=:]\s*['"`]([^'"`]*)['"`]/);
+    if (valueMatch) {
+      const value = valueMatch[1];
+      // Skip placeholder/example values
+      if (CREDENTIAL_PLACEHOLDER_PATTERNS.test(value)) return true;
+      // Skip very short values (likely not real credentials)
+      if (value.length < 4) return true;
+      // Skip values that are template expressions like ${...}
+      if (value.includes('${') || value.includes('process.env')) return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * Check if an innerHTML match is a false positive
+   */
+  private isXSSFalsePositive(line: string): boolean {
+    // Skip if the value is a pure string literal (static HTML)
+    if (/\.innerHTML\s*=\s*['"`]<[^'"`]*>['"`]\s*;?$/.test(line.trim())) return true;
+    // Skip if DOMPurify or sanitize is called on the same line
+    if (/DOMPurify\.sanitize|sanitize\s*\(|escape\s*\(|textContent/.test(line)) return true;
+    return false;
+  }
+
+  /**
+   * Check if a file is minified or from a vendor directory
+   */
+  private isMinifiedOrVendor(file: ScannedFile): boolean {
+    // Check path for vendor patterns
+    if (VENDOR_PATH_PATTERNS.test(file.relativePath)) return true;
+    // Check if file is likely minified (avg line length > 300)
+    if (file.lineCount > 0) {
+      const avgLineLength = file.content.length / file.lineCount;
+      if (avgLineLength > 300) return true;
+    }
+    return false;
   }
 
   /**

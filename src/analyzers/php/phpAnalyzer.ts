@@ -1,12 +1,22 @@
 /**
  * PHP Analyzer
- * Specialized analyzer for PHP code
+ * Specialized analyzer for PHP code with comprehensive security detection
+ * Includes deserialization, XXE, SSRF, and web shell detection
  */
 
 import { BaseAnalyzer } from '../base';
-import { ScannedFile, Finding, Rule, SupportedLanguage, Severity, ThreatType, FindingCategory } from '../../types';
-import { generateId, extractCodeContext } from '../../utils';
-import { getStandardsForThreat } from '../../rules/standards';
+import { ScannedFile, Finding, SupportedLanguage, Severity, ThreatType, FindingCategory } from '../../types';
+import { generateId } from '../../utils';
+import {
+  getInjectionPatterns,
+  getInjectionStandards,
+  buildWeakCryptoPatterns,
+  getCryptoStandards,
+  getDangerousFunctionPatterns,
+  getSecurityStandards,
+  getAllCredentialPatterns,
+  getCredentialStandards
+} from '../shared';
 
 /**
  * PHP Analyzer Class
@@ -14,121 +24,229 @@ import { getStandardsForThreat } from '../../rules/standards';
 export class PHPAnalyzer extends BaseAnalyzer {
   name = 'PHP Analyzer';
   languages: SupportedLanguage[] = ['php'];
-  version = '1.0.0';
+  version = '2.1.0';
+
+  // Pre-compiled shared patterns for PHP
+  private injectionPatterns = getInjectionPatterns('php');
+  private cryptoPatterns = buildWeakCryptoPatterns('php');
+  private dangerousFunctionPatterns = getDangerousFunctionPatterns('php');
+  private credentialPatterns = getAllCredentialPatterns();
 
   /**
-   * Analyze PHP file
+   * Custom PHP-specific analysis
+   * Improved: Analyzes logical blocks of code for better context
    */
-  async analyze(file: ScannedFile, rules: Rule[]): Promise<Finding[]> {
+  protected async performCustomAnalysis(file: ScannedFile): Promise<Finding[]> {
     const findings: Finding[] = [];
+    const content = file.content;
+    const lines = content.split('\n');
 
-    // Filter rules for PHP
-    const phpRules = rules.filter(r => r.languages.includes('php'));
+    // 1. Enhanced pattern-based analysis using shared patterns
+    const sharedPatternFindings = this.analyzeWithSharedPatterns(file, content, lines);
+    findings.push(...sharedPatternFindings);
 
-    // Run rule engine
-    const ruleFindings = await this.ruleEngine.analyzeFile(file, phpRules);
-    findings.push(...ruleFindings);
-
-    // Additional PHP-specific analysis
-    const customFindings = await this.customAnalysis(file);
-    findings.push(...customFindings);
+    // 2. Block-based analysis
+    const blocks = this.extractLogicalBlocks(content);
+    for (const block of blocks) {
+      const blockFindings = this.analyzeBlock(block, file);
+      findings.push(...blockFindings);
+    }
 
     return findings;
   }
 
   /**
-   * Custom PHP-specific analysis
+   * Analyze a single logical block for PHP-specific vulnerabilities
    */
-  private async customAnalysis(file: ScannedFile): Promise<Finding[]> {
+  private analyzeBlock(block: { content: string, startLine: number, name: string }, file: ScannedFile): Finding[] {
     const findings: Finding[] = [];
-    const lines = file.content.split('\n');
+    const blockContent = block.content;
+    const blockLines = blockContent.split('\n');
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const lineNum = i + 1;
-
-      // Check for dangerous functions
-      if (this.checkDangerousFunctions(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Dangerous PHP Function',
-          'Use of a function that can execute arbitrary code or commands.',
-          Severity.CRITICAL,
-          ThreatType.DANGEROUS_FUNCTION
-        ));
+    const blockPatterns = [
+      {
+        pattern: /\b(?:include|require|include_once|require_once)\s*\([^)]*\$_(?:GET|POST|REQUEST)/gi,
+        title: 'Potential File Inclusion Vulnerability',
+        description: 'Directly including request parameters can lead to LFI/RFI.',
+        severity: Severity.CRITICAL,
+        threatType: ThreatType.PATH_TRAVERSAL
+      },
+      {
+        pattern: /\$(?:query|sql)\s*=\s*["'].*?\$(?:_GET|_POST|_REQUEST)/gi,
+        title: 'Inyección SQL Potencial',
+        description: 'Interpolación directa de variables en consulta SQL detectada. Use sentencias preparadas.',
+        severity: Severity.CRITICAL,
+        threatType: ThreatType.SQL_INJECTION
+      },
+      {
+        pattern: /\b(?:eval|assert|passthru|exec|system|shell_exec)\s*\([^)]*\$(?:_GET|_POST|_REQUEST)/gi,
+        title: 'Función de PHP Peligrosa con Entrada de Usuario',
+        description: 'Ejecutar código o comandos arbitrarios desde parámetros de solicitud es altamente peligroso.',
+        severity: Severity.CRITICAL,
+        threatType: ThreatType.DANGEROUS_FUNCTION
+      },
+      {
+        pattern: /(?:echo|print|<?=)\s+[^;]*?(?:\$_GET|\$_POST|\$_REQUEST).*?(?!htmlspecialchars|htmlentities)/gi,
+        title: 'XSS Potencial (Cross-Site Scripting)',
+        description: 'Entrada de usuario mostrada sin el escape adecuado.',
+        severity: Severity.HIGH,
+        threatType: ThreatType.XSS
+      },
+      {
+        pattern: /\$_(?:GET|POST|REQUEST)\s*\[[^\]]+\]\s*\(\s*\$_(?:GET|POST|REQUEST)/gi,
+        title: 'Web Shell Potencial (Función Variable)',
+        description: 'Patrón de código consistente con una shell web o puerta trasera de PHP.',
+        severity: Severity.CRITICAL,
+        threatType: ThreatType.BACKDOOR
       }
+    ];
 
-      // Check for file inclusion vulnerabilities
-      if (this.checkFileInclusion(line)) {
-        findings.push(this.createFinding(
+    for (const bp of blockPatterns) {
+      let match;
+      while ((match = bp.pattern.exec(blockContent)) !== null) {
+        const relativeLineNum = blockContent.substring(0, match.index).split('\n').length;
+        const absoluteLineNum = block.startLine + relativeLineNum - 1;
+        const line = blockLines[relativeLineNum - 1] || '';
+
+        if (this.isCommentLine(line, 'php')) continue;
+
+        findings.push(this.buildFinding({
           file,
-          lineNum,
-          'Potential File Inclusion Vulnerability',
-          'File include with user-controlled input can lead to LFI/RFI.',
-          Severity.CRITICAL,
-          ThreatType.PATH_TRAVERSAL
-        ));
+          lineNum: absoluteLineNum,
+          title: bp.title,
+          description: `${bp.description} (Found in ${block.name})`,
+          severity: bp.severity,
+          threatType: bp.threatType
+        }));
       }
+    }
 
-      // Check for SQL injection patterns
-      if (this.checkSqlInjection(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Potential SQL Injection',
-          'Direct variable interpolation in SQL query detected.',
-          Severity.CRITICAL,
-          ThreatType.SQL_INJECTION
-        ));
+    return findings;
+  }
+
+  /**
+   * Analyze using shared patterns library
+   */
+  private analyzeWithSharedPatterns(file: ScannedFile, content: string, lines: string[]): Finding[] {
+    const findings: Finding[] = [];
+
+    // SQL Injection, Command Injection, XSS, Path Traversal patterns
+    for (const pattern of this.injectionPatterns) {
+      pattern.pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        findings.push({
+          id: generateId(),
+          title: pattern.name,
+          description: pattern.description,
+          severity: pattern.severity,
+          threatType: this.convertCategoryToThreatType(pattern.category),
+          category: FindingCategory.VULNERABILITY,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: lines[lineNum - 1] || '' },
+          standards: getInjectionStandards(pattern.category),
+          remediation: pattern.recommendation,
+          confidence: 80,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['php', pattern.category.toLowerCase().replace(/\s+/g, '-')]
+        });
       }
+    }
 
-      // Check for XSS vulnerabilities
-      if (this.checkXss(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Potential Cross-Site Scripting (XSS)',
-          'User input echoed without proper escaping.',
-          Severity.HIGH,
-          ThreatType.XSS
-        ));
+    // Weak cryptography detection
+    for (const pattern of this.cryptoPatterns) {
+      pattern.pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        findings.push({
+          id: generateId(),
+          title: pattern.name,
+          description: pattern.description,
+          severity: pattern.severity,
+          threatType: ThreatType.WEAK_CRYPTOGRAPHY,
+          category: FindingCategory.VULNERABILITY,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: lines[lineNum - 1] || '' },
+          standards: getCryptoStandards(),
+          remediation: pattern.recommendation,
+          confidence: 85,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['php', 'cryptography']
+        });
       }
+    }
 
-      // Check for insecure session configuration
-      if (this.checkInsecureSession(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Insecure Session Configuration',
-          'Session configuration may be insecure.',
-          Severity.MEDIUM,
-          ThreatType.SECURITY_MISCONFIGURATION
-        ));
+    // Dangerous functions (XXE, SSRF, Deserialization)
+    for (const pattern of this.dangerousFunctionPatterns) {
+      pattern.pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        findings.push({
+          id: generateId(),
+          title: pattern.name,
+          description: pattern.description,
+          severity: pattern.severity,
+          threatType: this.convertCategoryToThreatType(pattern.category),
+          category: FindingCategory.VULNERABILITY,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: lines[lineNum - 1] || '' },
+          standards: getSecurityStandards(pattern.category),
+          remediation: pattern.recommendation,
+          confidence: 80,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['php', pattern.category.toLowerCase().replace(/\s+/g, '-')]
+        });
       }
+    }
 
-      // Check for disable_functions bypass attempts
-      if (this.checkBypassAttempts(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Security Bypass Attempt',
-          'Code attempts to bypass PHP security restrictions.',
-          Severity.CRITICAL,
-          ThreatType.BACKDOOR
-        ));
-      }
+    // Hardcoded credentials
+    for (const pattern of this.credentialPatterns) {
+      pattern.pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        const line = lines[lineNum - 1] || '';
+        // Skip comments
+        if (this.isCommentLine(line, 'php')) continue;
 
-      // Check for web shell patterns
-      if (this.checkWebShell(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Web Shell Pattern Detected',
-          'Code pattern consistent with a PHP web shell.',
-          Severity.CRITICAL,
-          ThreatType.BACKDOOR
-        ));
+        findings.push({
+          id: generateId(),
+          title: 'Hardcoded Credential Detected',
+          description: `${pattern.name}: Hardcoded secrets should not be in source code.`,
+          severity: Severity.HIGH,
+          threatType: ThreatType.HARDCODED_SECRETS,
+          category: FindingCategory.SECRET,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: this.maskSecrets(line) },
+          standards: getCredentialStandards(),
+          remediation: 'Use environment variables or a configuration file outside webroot.',
+          confidence: 85,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['php', 'secrets', 'credential']
+        });
       }
     }
 
@@ -235,45 +353,6 @@ export class PHPAnalyzer extends BaseAnalyzer {
       /\$\w+\s*=\s*\$_(?:GET|POST|REQUEST)[^;]+;\s*@?\$\w+\s*\(/
     ];
     return patterns.some(p => p.test(line));
-  }
-
-  /**
-   * Create generic finding
-   */
-  private createFinding(
-    file: ScannedFile,
-    lineNum: number,
-    title: string,
-    description: string,
-    severity: Severity,
-    threatType: ThreatType
-  ): Finding {
-    const context = extractCodeContext(file.content, lineNum, 2);
-
-    return {
-      id: generateId(),
-      title,
-      description,
-      severity,
-      threatType,
-      category: FindingCategory.VULNERABILITY,
-      location: {
-        file: file.relativePath,
-        startLine: lineNum,
-        endLine: lineNum
-      },
-      snippet: {
-        code: context.code,
-        contextBefore: context.contextBefore,
-        contextAfter: context.contextAfter
-      },
-      standards: getStandardsForThreat(threatType),
-      remediation: 'Review and fix the identified issue.',
-      confidence: 80,
-      analyzer: this.name,
-      timestamp: new Date(),
-      tags: ['php']
-    };
   }
 }
 

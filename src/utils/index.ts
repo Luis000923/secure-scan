@@ -304,3 +304,7 @@ export function looksObfuscated(code: string): boolean {
 
   return patternMatches >= 2;
 }
+
+// Export semver utilities
+export * from './semver';
+

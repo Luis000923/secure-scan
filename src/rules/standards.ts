@@ -6,6 +6,49 @@
 import { SecurityStandard, ThreatType } from '../types';
 
 /**
+ * Get a CWE standard by ID
+ * @param cweId The CWE ID (e.g., 'CWE-79' or '79')
+ */
+export function getCWEStandard(cweId: string): SecurityStandard {
+  const normalizedId = cweId.startsWith('CWE-') ? cweId : `CWE-${cweId}`;
+  const standard = CWE_DATABASE[normalizedId];
+  
+  if (standard) {
+    return standard;
+  }
+  
+  // Return a generic standard if not found
+  return {
+    name: 'CWE',
+    id: normalizedId,
+    title: `Common Weakness Enumeration ${normalizedId}`,
+    description: `Security weakness categorized as ${normalizedId}`,
+    url: `https://cwe.mitre.org/data/definitions/${normalizedId.replace('CWE-', '')}.html`
+  };
+}
+
+/**
+ * Get an OWASP standard by ID
+ * @param owaspId The OWASP ID (e.g., 'A01:2021')
+ */
+export function getOWASPStandard(owaspId: string): SecurityStandard {
+  const standard = OWASP_TOP_10[owaspId];
+  
+  if (standard) {
+    return standard;
+  }
+  
+  // Return a generic standard if not found
+  return {
+    name: 'OWASP',
+    id: owaspId,
+    title: `OWASP Top 10 ${owaspId}`,
+    description: `OWASP Top 10 security risk ${owaspId}`,
+    url: 'https://owasp.org/Top10/'
+  };
+}
+
+/**
  * OWASP Top 10 2021
  */
 export const OWASP_TOP_10: Record<string, SecurityStandard> = {

@@ -15,3 +15,6 @@ export { securityMisconfigurationRules, default as securityMisconfiguration } fr
 export { csrfRules, default as csrf } from './csrf';
 export { prototypePollutionRules, default as prototypePollution } from './prototypePollution';
 export { fileUploadRules, default as fileUpload } from './fileUpload';
+export { openRedirectRules, default as openRedirect } from './openRedirect';
+export { jwtWeaknessRules, default as jwtWeakness } from './jwtWeakness';
+export { sessionSecurityRules, default as sessionSecurity } from './sessionSecurity';

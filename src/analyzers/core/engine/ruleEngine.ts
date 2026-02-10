@@ -84,7 +84,7 @@ export class RuleEngine {
     for (const pattern of rule.patterns) {
       if (pattern.type === 'regex') {
         const matches = this.matchRegex(file.content, pattern.pattern, pattern.flags);
-        
+
         for (const match of matches) {
           const finding = this.createFinding(rule, file, match);
           findings.push(finding);
@@ -97,38 +97,38 @@ export class RuleEngine {
 
   /**
    * Match regex pattern against content
+   * Improved: Matches against the entire content to support multiline patterns
    */
   private matchRegex(content: string, pattern: string, flags: string = 'gim'): PatternMatch[] {
     const matches: PatternMatch[] = [];
-    const lines = content.split('\n');
-    
+
     try {
-      const regex = new RegExp(pattern, flags);
-      
-      let lineOffset = 0;
-      for (let lineNum = 0; lineNum < lines.length; lineNum++) {
-        const line = lines[lineNum];
-        let match: RegExpExecArray | null;
-        
-        // Reset regex for each line
-        const lineRegex = new RegExp(pattern, flags.replace('g', '') + 'g');
-        
-        while ((match = lineRegex.exec(line)) !== null) {
-          matches.push({
-            matched: true,
-            line: lineNum + 1, // 1-indexed
-            column: match.index + 1,
-            matchedText: match[0],
-            groups: match.groups
-          });
-          
-          // Prevent infinite loop on zero-width matches
-          if (match[0].length === 0) {
-            lineRegex.lastIndex++;
-          }
+      // Ensure global flag is present for multiple matches
+      const finalFlags = flags.includes('g') ? flags : flags + 'g';
+      const regex = new RegExp(pattern, finalFlags);
+
+      let match: RegExpExecArray | null;
+      while ((match = regex.exec(content)) !== null) {
+        // Calculate line number from index
+        const beforeMatch = content.substring(0, match.index);
+        const lineNum = beforeMatch.split('\n').length;
+
+        // Calculate column (index in the current line)
+        const lastNewline = beforeMatch.lastIndexOf('\n');
+        const column = match.index - lastNewline; // if -1, still works (0-indexed + 1 = 1-indexed)
+
+        matches.push({
+          matched: true,
+          line: lineNum,
+          column: column,
+          matchedText: match[0],
+          groups: match.groups
+        });
+
+        // Prevent infinite loop on zero-width matches
+        if (match[0].length === 0) {
+          regex.lastIndex++;
         }
-        
-        lineOffset += line.length + 1;
       }
     } catch (error) {
       logger.debug(`Invalid regex pattern: ${pattern}`);
@@ -142,7 +142,7 @@ export class RuleEngine {
    */
   private createFinding(rule: Rule, file: ScannedFile, match: PatternMatch): Finding {
     const context = extractCodeContext(file.content, match.line, 3);
-    
+
     const location: SourceLocation = {
       file: file.relativePath,
       startLine: match.line,
@@ -170,8 +170,8 @@ export class RuleEngine {
       category: rule.category,
       location,
       snippet,
-      standards: rule.standards.length > 0 
-        ? rule.standards 
+      standards: rule.standards.length > 0
+        ? rule.standards
         : getStandardsForThreat(rule.threatType),
       remediation: rule.remediation,
       confidence: 85, // Default confidence for regex matches
@@ -190,7 +190,7 @@ export class RuleEngine {
 
     for (const finding of findings) {
       const key = `${finding.location.file}:${finding.location.startLine}:${finding.threatType}`;
-      
+
       if (!seen.has(key)) {
         seen.add(key);
         unique.push(finding);
@@ -212,7 +212,7 @@ export class RuleEngine {
       [Severity.INFO]: 4
     };
 
-    return [...findings].sort((a, b) => 
+    return [...findings].sort((a, b) =>
       severityOrder[a.severity] - severityOrder[b.severity]
     );
   }

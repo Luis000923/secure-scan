@@ -1,163 +1,370 @@
 /**
  * Java Analyzer
- * Specialized analyzer for Java code
+ * Specialized analyzer for Java code with comprehensive security detection
+ * Includes JNDI/Log4Shell, deserialization, and enterprise patterns
+ * 
+ * Extends BaseAnalyzer and implements performCustomAnalysis for Java-specific patterns
  */
 
 import { BaseAnalyzer } from '../base';
-import { ScannedFile, Finding, Rule, SupportedLanguage, Severity, ThreatType, FindingCategory } from '../../types';
-import { generateId, extractCodeContext } from '../../utils';
+import { ScannedFile, Finding, SupportedLanguage, Severity, ThreatType, FindingCategory } from '../../types';
+import { generateId } from '../../utils';
 import { getStandardsForThreat } from '../../rules/standards';
+import {
+  getInjectionPatterns,
+  getInjectionStandards,
+  buildWeakCryptoPatterns,
+  getCryptoStandards,
+  getDangerousFunctionPatterns,
+  getSecurityStandards,
+  getAllCredentialPatterns,
+  getCredentialStandards,
+  JNDI_PATTERNS
+} from '../shared';
 
 /**
  * Java Analyzer Class
+ * 
+ * Uses Template Method pattern from BaseAnalyzer.
+ * Implements performCustomAnalysis() for Java-specific security detection.
  */
 export class JavaAnalyzer extends BaseAnalyzer {
   name = 'Java Analyzer';
   languages: SupportedLanguage[] = ['java'];
-  version = '1.0.0';
+  version = '2.1.0';
+
+  // Pre-compiled shared patterns for Java
+  private injectionPatterns = getInjectionPatterns('java');
+  private cryptoPatterns = buildWeakCryptoPatterns('java');
+  private dangerousFunctionPatterns = getDangerousFunctionPatterns('java');
+  private credentialPatterns = getAllCredentialPatterns();
 
   /**
-   * Analyze Java file
+   * Java-specific analysis (Template Method hook)
+   * Improved: Analyzes logical blocks of code for better context and fewer false positives
    */
-  async analyze(file: ScannedFile, rules: Rule[]): Promise<Finding[]> {
+  protected async performCustomAnalysis(file: ScannedFile): Promise<Finding[]> {
     const findings: Finding[] = [];
+    const content = file.content;
+    const lines = content.split('\n');
 
-    // Filter rules for Java
-    const javaRules = rules.filter(r => r.languages.includes('java'));
+    // 1. Enhanced pattern-based analysis using shared patterns
+    const sharedPatternFindings = this.analyzeWithSharedPatterns(file, content, lines);
+    findings.push(...sharedPatternFindings);
 
-    // Run rule engine
-    const ruleFindings = await this.ruleEngine.analyzeFile(file, javaRules);
-    findings.push(...ruleFindings);
+    // 2. JNDI Injection (Log4Shell) detection
+    const jndiFindings = this.checkJndiInjection(file, content, lines);
+    findings.push(...jndiFindings);
 
-    // Additional Java-specific analysis
-    const customFindings = await this.customAnalysis(file);
-    findings.push(...customFindings);
+    // 3. Block-based analysis
+    const blocks = this.extractLogicalBlocks(content);
+    for (const block of blocks) {
+      const blockFindings = this.analyzeBlock(block, file);
+      findings.push(...blockFindings);
+    }
 
     return findings;
   }
 
   /**
-   * Custom Java-specific analysis
+   * Analyze a single logical block for Java-specific vulnerabilities
    */
-  private async customAnalysis(file: ScannedFile): Promise<Finding[]> {
+  private analyzeBlock(block: { content: string, startLine: number, name: string }, file: ScannedFile): Finding[] {
     const findings: Finding[] = [];
-    const lines = file.content.split('\n');
+    const blockContent = block.content;
+    const blockLines = blockContent.split('\n');
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const lineNum = i + 1;
-
-      // Check for ObjectInputStream deserialization
-      if (this.checkDeserializationSinks(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Unsafe Deserialization',
-          'ObjectInputStream.readObject() can execute arbitrary code.',
-          Severity.CRITICAL,
-          ThreatType.INSECURE_DESERIALIZATION
-        ));
+    const blockPatterns = [
+      {
+        pattern: /ObjectInputStream\s*\([^)]*\).*?\.readObject\s*\(/gs,
+        title: 'Deserialización Insegura',
+        description: 'ObjectInputStream.readObject() puede ejecutar código arbitrario durante la deserialización.',
+        severity: Severity.CRITICAL,
+        threatType: ThreatType.INSECURE_DESERIALIZATION
+      },
+      {
+        pattern: /(?:Runtime\.getRuntime\s*\(\s*\)\.exec|ProcessBuilder)\s*\([^)]*\+/g,
+        title: 'Inyección de Comandos Potencial',
+        description: 'La ejecución de comandos con concatenación dinámica de cadenas puede conducir a RCE.',
+        severity: Severity.CRITICAL,
+        threatType: ThreatType.COMMAND_INJECTION
+      },
+      {
+        pattern: /Statement\s*\.\s*execute(?:Query|Update)?\s*\([^)]*\+/g,
+        title: 'Inyección SQL Potencial',
+        description: 'Consulta SQL con concatenación de cadenas. Use PreparedStatement en su lugar.',
+        severity: Severity.CRITICAL,
+        threatType: ThreatType.SQL_INJECTION
+      },
+      {
+        pattern: /DocumentBuilderFactory\.newInstance\s*\(\s*\).*?(?!setFeature.*disallow-doctype-decl)/gs,
+        title: 'Vulnerabilidad XXE Potencial',
+        description: 'El analizador XML puede ser vulnerable a XXE si los DTD no están deshabilitados explícitamente.',
+        severity: Severity.HIGH,
+        threatType: ThreatType.DANGEROUS_FUNCTION
+      },
+      {
+        pattern: /new\s+(?:File|FileInputStream|FileOutputStream)\s*\([^)]*\+/g,
+        title: 'Salto de Directorio Potencial',
+        description: 'Operación de archivo usando concatenación de rutas controladas por el usuario.',
+        severity: Severity.HIGH,
+        threatType: ThreatType.PATH_TRAVERSAL
+      },
+      {
+        pattern: /SpelExpressionParser\s*\(\s*\).*?parseExpression\s*\([^)]*\+/gs,
+        title: 'Inyección de Expresiones SpEL',
+        description: 'El lenguaje de expresiones de Spring (SpEL) con concatenación de entrada de usuario puede conducir a RCE.',
+        severity: Severity.CRITICAL,
+        threatType: ThreatType.COMMAND_INJECTION
       }
+    ];
 
-      // Check for Runtime.exec
-      if (this.checkRuntimeExec(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Potential Command Injection',
-          'Runtime.exec() with dynamic input can lead to command injection.',
-          Severity.CRITICAL,
-          ThreatType.COMMAND_INJECTION
-        ));
-      }
+    for (const bp of blockPatterns) {
+      let match;
+      while ((match = bp.pattern.exec(blockContent)) !== null) {
+        const relativeLineNum = blockContent.substring(0, match.index).split('\n').length;
+        const absoluteLineNum = block.startLine + relativeLineNum - 1;
+        const line = blockLines[relativeLineNum - 1] || '';
 
-      // Check for SQL injection patterns
-      if (this.checkSqlInjection(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Potential SQL Injection',
-          'String concatenation in SQL query detected. Use PreparedStatement.',
-          Severity.CRITICAL,
-          ThreatType.SQL_INJECTION
-        ));
-      }
+        if (this.isCommentLine(line, 'java')) continue;
 
-      // Check for XXE vulnerabilities
-      if (this.checkXxe(line)) {
-        findings.push(this.createFinding(
+        findings.push(this.buildFinding({
           file,
-          lineNum,
-          'Potential XXE Vulnerability',
-          'XML parser may be vulnerable to XXE attacks.',
-          Severity.HIGH,
-          ThreatType.DANGEROUS_FUNCTION
-        ));
-      }
-
-      // Check for path traversal
-      if (this.checkPathTraversal(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Potential Path Traversal',
-          'File operations with user-controlled input detected.',
-          Severity.HIGH,
-          ThreatType.PATH_TRAVERSAL
-        ));
-      }
-
-      // Check for insecure random
-      if (this.checkInsecureRandom(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Insecure Random Number Generator',
-          'java.util.Random is not cryptographically secure.',
-          Severity.MEDIUM,
-          ThreatType.WEAK_RANDOM
-        ));
-      }
-
-      // Check for weak crypto
-      if (this.checkWeakCrypto(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Weak Cryptographic Algorithm',
-          'Use of weak or deprecated cryptographic algorithm.',
-          Severity.MEDIUM,
-          ThreatType.INSECURE_CRYPTO
-        ));
-      }
-
-      // Check for LDAP injection
-      if (this.checkLdapInjection(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Potential LDAP Injection',
-          'LDAP query with user-controlled input detected.',
-          Severity.HIGH,
-          ThreatType.LDAP_INJECTION
-        ));
-      }
-
-      // Check for Spring Expression Language injection
-      if (this.checkSpelInjection(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'SpEL Expression Injection',
-          'Spring Expression Language with user input can lead to RCE.',
-          Severity.CRITICAL,
-          ThreatType.COMMAND_INJECTION
-        ));
+          lineNum: absoluteLineNum,
+          title: bp.title,
+          description: `${bp.description} (Found in ${block.name})`,
+          severity: bp.severity,
+          threatType: bp.threatType
+        }));
       }
     }
 
     return findings;
   }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SHARED PATTERN ANALYSIS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Analyze using shared patterns library
+   */
+  private analyzeWithSharedPatterns(file: ScannedFile, content: string, lines: string[]): Finding[] {
+    const findings: Finding[] = [];
+
+    // SQL Injection, Command Injection, XSS, Path Traversal patterns
+    for (const pattern of this.injectionPatterns) {
+      pattern.pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        findings.push({
+          id: generateId(),
+          title: pattern.name,
+          description: pattern.description,
+          severity: pattern.severity,
+          threatType: this.convertCategoryToThreatType(pattern.category),
+          category: FindingCategory.VULNERABILITY,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: lines[lineNum - 1] || '' },
+          standards: getInjectionStandards(pattern.category),
+          remediation: pattern.recommendation,
+          confidence: 80,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['java', pattern.category.toLowerCase().replace(/\s+/g, '-')]
+        });
+      }
+    }
+
+    // Weak cryptography detection
+    for (const pattern of this.cryptoPatterns) {
+      pattern.pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        findings.push({
+          id: generateId(),
+          title: pattern.name,
+          description: pattern.description,
+          severity: pattern.severity,
+          threatType: ThreatType.WEAK_CRYPTOGRAPHY,
+          category: FindingCategory.VULNERABILITY,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: lines[lineNum - 1] || '' },
+          standards: getCryptoStandards(),
+          remediation: pattern.recommendation,
+          confidence: 85,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['java', 'cryptography']
+        });
+      }
+    }
+
+    // Dangerous functions (XXE, SSRF, Deserialization)
+    for (const pattern of this.dangerousFunctionPatterns) {
+      pattern.pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        findings.push({
+          id: generateId(),
+          title: pattern.name,
+          description: pattern.description,
+          severity: pattern.severity,
+          threatType: this.convertCategoryToThreatType(pattern.category),
+          category: FindingCategory.VULNERABILITY,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: lines[lineNum - 1] || '' },
+          standards: getSecurityStandards(pattern.category),
+          remediation: pattern.recommendation,
+          confidence: 80,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['java', pattern.category.toLowerCase().replace(/\s+/g, '-')]
+        });
+      }
+    }
+
+    // Hardcoded credentials
+    for (const pattern of this.credentialPatterns) {
+      pattern.pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        const line = lines[lineNum - 1] || '';
+        // Skip comments
+        if (this.isCommentLine(line, 'java')) continue;
+
+        findings.push({
+          id: generateId(),
+          title: 'Hardcoded Credential Detected',
+          description: `${pattern.name}: Hardcoded secrets should not be in source code.`,
+          severity: Severity.HIGH,
+          threatType: ThreatType.HARDCODED_SECRETS,
+          category: FindingCategory.SECRET,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: this.maskSecrets(line) },
+          standards: getCredentialStandards(),
+          remediation: 'Use environment variables, Spring Vault, or AWS Secrets Manager.',
+          confidence: 85,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['java', 'secrets', 'credential']
+        });
+      }
+    }
+
+    return findings;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // JNDI / LOG4SHELL DETECTION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  /**
+   * Check for JNDI Injection vulnerabilities (Log4Shell CVE-2021-44228)
+   */
+  private checkJndiInjection(file: ScannedFile, content: string, lines: string[]): Finding[] {
+    const findings: Finding[] = [];
+
+    for (const pattern of JNDI_PATTERNS) {
+      pattern.pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        findings.push({
+          id: generateId(),
+          title: pattern.name,
+          description: pattern.description,
+          severity: pattern.severity,
+          threatType: ThreatType.INJECTION,
+          category: FindingCategory.VULNERABILITY,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: lines[lineNum - 1] || '' },
+          standards: getSecurityStandards('JNDI Injection'),
+          remediation: pattern.recommendation,
+          confidence: 90,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['java', 'jndi', 'log4shell', 'cve-2021-44228']
+        });
+      }
+    }
+
+    // Additional Log4j specific patterns
+    const log4jPatterns = [
+      {
+        pattern: /log4j.*1\.\d/gi,
+        name: 'Log4j 1.x Detectado',
+        severity: Severity.HIGH,
+        description: 'Log4j 1.x está al final de su vida útil (EOL) y tiene vulnerabilidades conocidas.',
+        recommendation: 'Actualice a Log4j 2.17.1 o posterior.',
+      },
+      {
+        pattern: /org\.apache\.logging\.log4j.*[12]\.[0-9]+/gi,
+        name: 'Necesaria Verificación de Versión de Log4j',
+        severity: Severity.MEDIUM,
+        description: 'Verifique que la versión de Log4j sea 2.17.1 o posterior para evitar Log4Shell.',
+        recommendation: 'Actualice Log4j a 2.17.1+ y elimine la clase JndiLookup.',
+      }
+    ];
+
+    for (const pattern of log4jPatterns) {
+      pattern.pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        findings.push({
+          id: generateId(),
+          title: pattern.name,
+          description: pattern.description,
+          severity: pattern.severity,
+          threatType: ThreatType.VULNERABLE_DEPENDENCY,
+          category: FindingCategory.VULNERABILITY,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: lines[lineNum - 1] || '' },
+          standards: getSecurityStandards('JNDI Injection'),
+          remediation: pattern.recommendation,
+          confidence: 70,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['java', 'log4j', 'dependency']
+        });
+      }
+    }
+
+    return findings;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // JAVA-SPECIFIC PATTERN CHECKERS
+  // ═══════════════════════════════════════════════════════════════════════════
 
   /**
    * Check for deserialization sinks
@@ -210,11 +417,9 @@ export class JavaAnalyzer extends BaseAnalyzer {
       /XMLInputFactory\.newInstance\s*\(\s*\)/,
       /TransformerFactory\.newInstance\s*\(\s*\)/
     ];
-    // Only flag if not followed by secure configuration
     if (patterns.some(p => p.test(line))) {
-      // Check for secure configuration (simplified)
       if (!/setFeature.*disallow-doctype-decl/i.test(line) &&
-          !/setFeature.*external-general-entities/i.test(line)) {
+        !/setFeature.*external-general-entities/i.test(line)) {
         return true;
       }
     }
@@ -275,45 +480,6 @@ export class JavaAnalyzer extends BaseAnalyzer {
       /ExpressionParser.*parseExpression\s*\([^)]*request/i
     ];
     return patterns.some(p => p.test(line));
-  }
-
-  /**
-   * Create generic finding
-   */
-  private createFinding(
-    file: ScannedFile,
-    lineNum: number,
-    title: string,
-    description: string,
-    severity: Severity,
-    threatType: ThreatType
-  ): Finding {
-    const context = extractCodeContext(file.content, lineNum, 2);
-
-    return {
-      id: generateId(),
-      title,
-      description,
-      severity,
-      threatType,
-      category: FindingCategory.VULNERABILITY,
-      location: {
-        file: file.relativePath,
-        startLine: lineNum,
-        endLine: lineNum
-      },
-      snippet: {
-        code: context.code,
-        contextBefore: context.contextBefore,
-        contextAfter: context.contextAfter
-      },
-      standards: getStandardsForThreat(threatType),
-      remediation: 'Review and fix the identified issue.',
-      confidence: 75,
-      analyzer: this.name,
-      timestamp: new Date(),
-      tags: ['java']
-    };
   }
 }
 

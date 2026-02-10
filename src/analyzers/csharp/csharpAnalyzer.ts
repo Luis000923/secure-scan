@@ -1,12 +1,23 @@
 /**
  * C# Analyzer
- * Specialized analyzer for C# code
+ * Specialized analyzer for C# code with comprehensive security detection
+ * Includes Razor injection, Entity Framework issues, and .NET-specific patterns
  */
 
 import { BaseAnalyzer } from '../base';
-import { ScannedFile, Finding, Rule, SupportedLanguage, Severity, ThreatType, FindingCategory } from '../../types';
-import { generateId, extractCodeContext } from '../../utils';
+import { ScannedFile, Finding, SupportedLanguage, Severity, ThreatType, FindingCategory } from '../../types';
+import { generateId } from '../../utils';
 import { getStandardsForThreat } from '../../rules/standards';
+import {
+  getInjectionPatterns,
+  getInjectionStandards,
+  buildWeakCryptoPatterns,
+  getCryptoStandards,
+  getDangerousFunctionPatterns,
+  getSecurityStandards,
+  getAllCredentialPatterns,
+  getCredentialStandards
+} from '../shared';
 
 /**
  * C# Analyzer Class
@@ -14,145 +25,368 @@ import { getStandardsForThreat } from '../../rules/standards';
 export class CSharpAnalyzer extends BaseAnalyzer {
   name = 'C# Analyzer';
   languages: SupportedLanguage[] = ['csharp'];
-  version = '1.0.0';
+  version = '2.1.0';
+
+  // Pre-compiled shared patterns for C#
+  private injectionPatterns = getInjectionPatterns('csharp');
+  private cryptoPatterns = buildWeakCryptoPatterns('csharp');
+  private dangerousFunctionPatterns = getDangerousFunctionPatterns('csharp');
+  private credentialPatterns = getAllCredentialPatterns();
 
   /**
-   * Analyze C# file
+   * Custom C#-specific analysis
+   * Improved: Analyzes logical blocks of code for better context
    */
-  async analyze(file: ScannedFile, rules: Rule[]): Promise<Finding[]> {
+  protected async performCustomAnalysis(file: ScannedFile): Promise<Finding[]> {
     const findings: Finding[] = [];
+    const content = file.content;
+    const lines = content.split('\n');
 
-    // Filter rules for C#
-    const csRules = rules.filter(r => r.languages.includes('csharp'));
+    // 1. Enhanced pattern-based analysis using shared patterns
+    const sharedPatternFindings = this.analyzeWithSharedPatterns(file, content, lines);
+    findings.push(...sharedPatternFindings);
 
-    // Run rule engine
-    const ruleFindings = await this.ruleEngine.analyzeFile(file, csRules);
-    findings.push(...ruleFindings);
+    // 2. Razor-specific and ASP.NET-specific checks
+    const razorFindings = this.checkRazorInjection(file, content, lines);
+    findings.push(...razorFindings);
 
-    // Additional C#-specific analysis
-    const customFindings = await this.customAnalysis(file);
-    findings.push(...customFindings);
+    // 3. Block-based analysis
+    const blocks = this.extractLogicalBlocks(content);
+    for (const block of blocks) {
+      const blockFindings = this.analyzeBlock(block, file);
+      findings.push(...blockFindings);
+    }
 
     return findings;
   }
 
   /**
-   * Custom C#-specific analysis
+   * Analyze a single logical block for C#-specific vulnerabilities
    */
-  private async customAnalysis(file: ScannedFile): Promise<Finding[]> {
+  private analyzeBlock(block: { content: string, startLine: number, name: string }, file: ScannedFile): Finding[] {
     const findings: Finding[] = [];
-    const lines = file.content.split('\n');
+    const blockContent = block.content;
+    const blockLines = blockContent.split('\n');
 
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const lineNum = i + 1;
-
-      // Check for SQL injection
-      if (this.checkSqlInjection(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Potential SQL Injection',
-          'String concatenation in SQL query. Use parameterized queries.',
-          Severity.CRITICAL,
-          ThreatType.SQL_INJECTION
-        ));
+    const blockPatterns = [
+      {
+        pattern: /SqlCommand\s*\([^)]*\+/g,
+        title: 'Potential SQL Injection',
+        description: 'String concatenation in SQL query. Use parameterized queries.',
+        severity: Severity.CRITICAL,
+        threatType: ThreatType.SQL_INJECTION
+      },
+      {
+        pattern: /Process\.Start\s*\([^)]*\+/g,
+        title: 'Riesgo de Inyección de Comandos',
+        description: 'Process.Start con argumentos potencialmente controlados por el usuario.',
+        severity: Severity.CRITICAL,
+        threatType: ThreatType.COMMAND_INJECTION
+      },
+      {
+        pattern: /(?:BinaryFormatter|NetDataContractSerializer|SoapFormatter)\.Deserialize\s*\(/g,
+        title: 'Deserialización Insegura',
+        description: 'Los formateadores inseguros pueden ejecutar código arbitrario durante la deserialización.',
+        severity: Severity.CRITICAL,
+        threatType: ThreatType.INSECURE_DESERIALIZATION
+      },
+      {
+        pattern: /XmlDocument\s*\(\s*\).*?DtdProcessing\s*=\s*DtdProcessing\.Parse/gs,
+        title: 'Vulnerabilidad XXE Potencial',
+        description: 'El analizador XML con el procesamiento DTD habilitado es vulnerable a XXE.',
+        severity: Severity.HIGH,
+        threatType: ThreatType.DANGEROUS_FUNCTION
+      },
+      {
+        pattern: /File\.(?:ReadAll|WriteAll|Open|Delete)\s*\([^)]*\+/g,
+        title: 'Riesgo de Salto de Directorio',
+        description: 'Operación de archivo con concatenación de ruta potencialmente controlada por el usuario.',
+        severity: Severity.HIGH,
+        threatType: ThreatType.PATH_TRAVERSAL
+      },
+      {
+        pattern: /Type\.GetType\s*\([^)]*\+/g,
+        title: 'Reflexión Insegura',
+        description: 'Type.GetType con concatenación de cadenas puede cargar ensamblados maliciosos.',
+        severity: Severity.HIGH,
+        threatType: ThreatType.DANGEROUS_FUNCTION
       }
+    ];
 
-      // Check for command injection
-      if (this.checkCommandInjection(line)) {
-        findings.push(this.createFinding(
+    for (const bp of blockPatterns) {
+      let match;
+      while ((match = bp.pattern.exec(blockContent)) !== null) {
+        const relativeLineNum = blockContent.substring(0, match.index).split('\n').length;
+        const absoluteLineNum = block.startLine + relativeLineNum - 1;
+        const line = blockLines[relativeLineNum - 1] || '';
+
+        if (this.isCommentLine(line, 'csharp')) continue;
+
+        findings.push(this.buildFinding({
           file,
-          lineNum,
-          'Command Injection Risk',
-          'Process.Start with potentially user-controlled arguments.',
-          Severity.CRITICAL,
-          ThreatType.COMMAND_INJECTION
-        ));
+          lineNum: absoluteLineNum,
+          title: bp.title,
+          description: `${bp.description} (Found in ${block.name})`,
+          severity: bp.severity,
+          threatType: bp.threatType
+        }));
       }
+    }
 
-      // Check for deserialization
-      if (this.checkDeserialization(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Insecure Deserialization',
-          'BinaryFormatter and similar can execute arbitrary code.',
-          Severity.CRITICAL,
-          ThreatType.INSECURE_DESERIALIZATION
-        ));
+    return findings;
+  }
+
+  /**
+   * Analyze using shared patterns library
+   */
+  private analyzeWithSharedPatterns(file: ScannedFile, content: string, lines: string[]): Finding[] {
+    const findings: Finding[] = [];
+
+    // SQL Injection, Command Injection, XSS, Path Traversal patterns
+    for (const pattern of this.injectionPatterns) {
+      pattern.pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        findings.push({
+          id: generateId(),
+          title: pattern.name,
+          description: pattern.description,
+          severity: pattern.severity,
+          threatType: this.convertCategoryToThreatType(pattern.category),
+          category: FindingCategory.VULNERABILITY,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: lines[lineNum - 1] || '' },
+          standards: getInjectionStandards(pattern.category),
+          remediation: pattern.recommendation,
+          confidence: 80,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['csharp', pattern.category.toLowerCase().replace(/\s+/g, '-')]
+        });
       }
+    }
 
-      // Check for XXE
-      if (this.checkXxe(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Potential XXE Vulnerability',
-          'XML parser may be vulnerable to XXE attacks.',
-          Severity.HIGH,
-          ThreatType.DANGEROUS_FUNCTION
-        ));
+    // Weak cryptography detection
+    for (const pattern of this.cryptoPatterns) {
+      pattern.pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        findings.push({
+          id: generateId(),
+          title: pattern.name,
+          description: pattern.description,
+          severity: pattern.severity,
+          threatType: ThreatType.WEAK_CRYPTOGRAPHY,
+          category: FindingCategory.VULNERABILITY,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: lines[lineNum - 1] || '' },
+          standards: getCryptoStandards(),
+          remediation: pattern.recommendation,
+          confidence: 85,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['csharp', 'cryptography']
+        });
       }
+    }
 
-      // Check for LDAP injection
-      if (this.checkLdapInjection(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Potential LDAP Injection',
-          'LDAP query with user-controlled input.',
-          Severity.HIGH,
-          ThreatType.LDAP_INJECTION
-        ));
+    // Dangerous functions (XXE, SSRF, Deserialization)
+    for (const pattern of this.dangerousFunctionPatterns) {
+      pattern.pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        findings.push({
+          id: generateId(),
+          title: pattern.name,
+          description: pattern.description,
+          severity: pattern.severity,
+          threatType: this.convertCategoryToThreatType(pattern.category),
+          category: FindingCategory.VULNERABILITY,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: lines[lineNum - 1] || '' },
+          standards: getSecurityStandards(pattern.category),
+          remediation: pattern.recommendation,
+          confidence: 80,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['csharp', pattern.category.toLowerCase().replace(/\s+/g, '-')]
+        });
       }
+    }
 
-      // Check for path traversal
-      if (this.checkPathTraversal(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Path Traversal Risk',
-          'File operation with potentially user-controlled path.',
-          Severity.HIGH,
-          ThreatType.PATH_TRAVERSAL
-        ));
+    // Hardcoded credentials
+    for (const pattern of this.credentialPatterns) {
+      pattern.pattern.lastIndex = 0;
+      let match;
+      while ((match = pattern.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        const line = lines[lineNum - 1] || '';
+        // Skip comments
+        if (this.isCommentLine(line, 'csharp')) continue;
+
+        findings.push({
+          id: generateId(),
+          title: 'Hardcoded Credential Detected',
+          description: `${pattern.name}: Hardcoded secrets should not be in source code.`,
+          severity: Severity.HIGH,
+          threatType: ThreatType.HARDCODED_SECRETS,
+          category: FindingCategory.SECRET,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: this.maskSecrets(line) },
+          standards: getCredentialStandards(),
+          remediation: 'Use Azure Key Vault, User Secrets, or IConfiguration with environment variables.',
+          confidence: 85,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['csharp', 'secrets', 'credential']
+        });
       }
+    }
 
-      // Check for weak crypto
-      if (this.checkWeakCrypto(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Weak Cryptographic Algorithm',
-          'Use of weak or deprecated cryptographic algorithm.',
-          Severity.MEDIUM,
-          ThreatType.INSECURE_CRYPTO
-        ));
+    return findings;
+  }
+
+  /**
+   * Check for Razor-specific injection vulnerabilities
+   */
+  private checkRazorInjection(file: ScannedFile, content: string, lines: string[]): Finding[] {
+    const findings: Finding[] = [];
+
+    // Only check .cshtml and .razor files, or files with Razor patterns
+    const isRazorFile = file.relativePath.endsWith('.cshtml') ||
+      file.relativePath.endsWith('.razor') ||
+      /@Html\./.test(content);
+
+    if (!isRazorFile) return findings;
+
+    const razorPatterns = [
+      {
+        pattern: /@Html\.Raw\s*\(/gi,
+        name: 'XSS - Html.Raw',
+        severity: Severity.HIGH,
+        description: 'Html.Raw outputs unencoded HTML, vulnerable to XSS.',
+        recommendation: 'Sanitize content before using Html.Raw or use normal Razor output.',
+      },
+      {
+        pattern: /@\(\s*new\s+HtmlString\s*\(/gi,
+        name: 'XSS - HtmlString',
+        severity: Severity.HIGH,
+        description: 'HtmlString bypasses automatic encoding.',
+        recommendation: 'Avoid HtmlString with user input, sanitize if necessary.',
+      },
+      {
+        pattern: /Response\.Write\s*\([^)]*Request\[/gi,
+        name: 'XSS - Response.Write',
+        severity: Severity.CRITICAL,
+        description: 'Writing request data directly to response.',
+        recommendation: 'Use HttpUtility.HtmlEncode or Razor syntax.',
+      },
+      {
+        pattern: /ValidateInput\s*\(\s*false\s*\)/gi,
+        name: 'Request Validation Disabled',
+        severity: Severity.HIGH,
+        description: 'ValidateInput(false) disables ASP.NET request validation.',
+        recommendation: 'Keep request validation enabled, use [AllowHtml] selectively.',
+      },
+      {
+        pattern: /@Html\.Action\s*\([^)]*Request\[/gi,
+        name: 'Open Redirect via Html.Action',
+        severity: Severity.MEDIUM,
+        description: 'Html.Action with request parameters may allow open redirect.',
+        recommendation: 'Validate action names against allowlist.',
+      },
+    ];
+
+    for (const p of razorPatterns) {
+      p.pattern.lastIndex = 0;
+      let match;
+      while ((match = p.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        findings.push({
+          id: generateId(),
+          title: p.name,
+          description: p.description,
+          severity: p.severity,
+          threatType: ThreatType.XSS,
+          category: FindingCategory.VULNERABILITY,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: lines[lineNum - 1] || '' },
+          standards: getInjectionStandards('XSS'),
+          remediation: p.recommendation,
+          confidence: 85,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['csharp', 'razor', 'xss']
+        });
       }
+    }
 
-      // Check for hardcoded credentials
-      if (this.checkHardcodedCredentials(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Hardcoded Credentials',
-          'Credentials appear to be hardcoded in source code.',
-          Severity.HIGH,
-          ThreatType.HARDCODED_CREDENTIALS
-        ));
-      }
+    // Entity Framework specific patterns
+    const efPatterns = [
+      {
+        pattern: /\.FromSqlRaw\s*\(\s*\$"/gi,
+        name: 'SQL Injection (EF FromSqlRaw)',
+        severity: Severity.CRITICAL,
+        description: 'String interpolation in FromSqlRaw is vulnerable to SQL injection.',
+        recommendation: 'Use FromSqlInterpolated or pass parameters array to FromSqlRaw.',
+      },
+      {
+        pattern: /\.ExecuteSqlRaw\s*\(\s*\$"/gi,
+        name: 'SQL Injection (EF ExecuteSqlRaw)',
+        severity: Severity.CRITICAL,
+        description: 'String interpolation in ExecuteSqlRaw is vulnerable.',
+        recommendation: 'Use ExecuteSqlInterpolated or pass parameters array.',
+      },
+    ];
 
-      // Check for unsafe reflection
-      if (this.checkUnsafeReflection(line)) {
-        findings.push(this.createFinding(
-          file,
-          lineNum,
-          'Unsafe Reflection',
-          'Type.GetType with user input can load malicious assemblies.',
-          Severity.HIGH,
-          ThreatType.DANGEROUS_FUNCTION
-        ));
+    for (const p of efPatterns) {
+      p.pattern.lastIndex = 0;
+      let match;
+      while ((match = p.pattern.exec(content)) !== null) {
+        const lineNum = this.calculateLineNumber(content, match.index);
+        findings.push({
+          id: generateId(),
+          title: p.name,
+          description: p.description,
+          severity: p.severity,
+          threatType: ThreatType.SQL_INJECTION,
+          category: FindingCategory.VULNERABILITY,
+          location: {
+            file: file.relativePath,
+            startLine: lineNum,
+            endLine: lineNum
+          },
+          snippet: { code: lines[lineNum - 1] || '' },
+          standards: getInjectionStandards('SQL Injection'),
+          remediation: p.recommendation,
+          confidence: 90,
+          analyzer: this.name,
+          timestamp: new Date(),
+          tags: ['csharp', 'entity-framework', 'sql-injection']
+        });
       }
     }
 
@@ -283,45 +517,6 @@ export class CSharpAnalyzer extends BaseAnalyzer {
       /Activator\.CreateInstance\s*\([^)]*GetType/
     ];
     return patterns.some(p => p.test(line));
-  }
-
-  /**
-   * Create generic finding
-   */
-  private createFinding(
-    file: ScannedFile,
-    lineNum: number,
-    title: string,
-    description: string,
-    severity: Severity,
-    threatType: ThreatType
-  ): Finding {
-    const context = extractCodeContext(file.content, lineNum, 2);
-
-    return {
-      id: generateId(),
-      title,
-      description,
-      severity,
-      threatType,
-      category: FindingCategory.VULNERABILITY,
-      location: {
-        file: file.relativePath,
-        startLine: lineNum,
-        endLine: lineNum
-      },
-      snippet: {
-        code: context.code,
-        contextBefore: context.contextBefore,
-        contextAfter: context.contextAfter
-      },
-      standards: getStandardsForThreat(threatType),
-      remediation: 'Review and fix the identified issue.',
-      confidence: 75,
-      analyzer: this.name,
-      timestamp: new Date(),
-      tags: ['csharp', 'dotnet']
-    };
   }
 }
 

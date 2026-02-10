@@ -24,7 +24,8 @@ const CATEGORY_WEIGHTS: Record<FindingCategory, number> = {
   [FindingCategory.MALWARE]: 1.5,
   [FindingCategory.VULNERABILITY]: 1.0,
   [FindingCategory.CODE_SMELL]: 0.5,
-  [FindingCategory.BEST_PRACTICE]: 0.3
+  [FindingCategory.BEST_PRACTICE]: 0.3,
+  [FindingCategory.SECRET]: 1.2
 };
 
 /**
@@ -111,7 +112,8 @@ export class RiskScoringEngine {
       [FindingCategory.MALWARE]: 0,
       [FindingCategory.VULNERABILITY]: 0,
       [FindingCategory.CODE_SMELL]: 0,
-      [FindingCategory.BEST_PRACTICE]: 0
+      [FindingCategory.BEST_PRACTICE]: 0,
+      [FindingCategory.SECRET]: 0
     };
 
     for (const finding of findings) {
