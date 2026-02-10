@@ -14,6 +14,33 @@ import { SecurityScanner } from '../analyzers/core/securityScanner';
 import { ScanConfig, Severity, SupportedLanguage } from '../types';
 import { setLogLevel } from '../utils/logger';
 
+/**
+ * Typed options for the scan command
+ */
+interface ScanCommandOptions {
+  output?: string;
+  languages?: string;
+  exclude?: string;
+  minSeverity: string;
+  ai?: boolean;
+  aiProvider: string;
+  aiModel?: string;
+  aiEndpoint?: string;
+  apiKey?: string;
+  verbose?: boolean;
+  json?: boolean;
+  maxFileSize: string;
+  lang: string;
+  fixSuggestions?: boolean;
+}
+
+/**
+ * Typed options for the rules command
+ */
+interface RulesCommandOptions {
+  language?: string;
+}
+
 // Información del paquete
 const packageJson = require('../../package.json');
 
@@ -36,7 +63,6 @@ program
   .option('-e, --exclude <patterns>', 'Patrones a excluir separados por coma')
   .option('--min-severity <level>', 'Severidad mínima a reportar (info, low, medium, high, critical)', 'info')
   .option('--ai', 'Habilitar análisis con IA')
-  .option('--api-key <key>', 'API key para el proveedor de IA (auto-detecta OpenAI, Anthropic, Google)')
   .option('--ai-provider <provider>', 'Proveedor de IA (openai, anthropic, google, gemini, local, auto)', 'auto')
   .option('--ai-model <model>', 'Modelo de IA a usar (gpt-4o, gpt-4, gpt-3.5-turbo, claude-3-sonnet, gemini-1.5-flash, etc.)')
   .option('--ai-endpoint <url>', 'URL del endpoint para IA local (default: http://localhost:11434/api/generate)')
@@ -44,13 +70,23 @@ program
   .option('--json', 'Mostrar resultados como JSON en stdout')
   .option('--max-file-size <bytes>', 'Tamaño máximo de archivo a escanear (en bytes)', '5242880')
   .option('--lang <language>', 'Idioma del reporte: es (español) o en (inglés)', 'es')
-  .action(async (projectPath: string, options: any) => {
+  .option('--api-key <key>', '[DEPRECADO] API key para IA (use variables de entorno en su lugar)')
+  .option('--fix-suggestions', 'Mostrar sugerencias de corrección en la consola')
+  .action(async (projectPath: string, options: ScanCommandOptions) => {
     try {
       // Validate project path
       const resolvedPath = path.resolve(projectPath);
       if (!fs.existsSync(resolvedPath)) {
         console.error(chalk.red(`❌ Error: La ruta no existe: ${resolvedPath}`));
         process.exit(1);
+      }
+
+      // Warn about deprecated --api-key flag
+      if (options.apiKey) {
+        console.warn(chalk.yellow('⚠️  [DEPRECADO] El flag --api-key expone credenciales en la lista de procesos.'));
+        console.warn(chalk.yellow('   Use variables de entorno en su lugar:'));
+        console.warn(chalk.gray('   export OPENAI_API_KEY="sk-..."'));
+        console.warn('');
       }
 
       // Set log level
@@ -61,7 +97,7 @@ program
       // Parse languages
       let languages: SupportedLanguage[] | undefined;
       if (options.languages) {
-        languages = options.languages.split(',').map((l: string) => l.trim().toLowerCase());
+        languages = options.languages.split(',').map((l: string) => l.trim().toLowerCase()) as SupportedLanguage[];
       }
 
       // Parse exclude patterns
@@ -84,7 +120,47 @@ program
       // Default endpoint for local AI (Ollama)
       const defaultLocalEndpoint = 'http://localhost:11434/api/generate';
       const defaultLocalModel = 'codellama:7b-instruct';
-      
+
+      // Get API key — prefer env vars, allow deprecated --api-key as fallback
+      const getApiKey = (): string | undefined => {
+        // Check for provider-specific keys first
+        const providerKeys: Record<string, string[]> = {
+          'openai': ['OPENAI_API_KEY'],
+          'anthropic': ['ANTHROPIC_API_KEY'],
+          'google': ['GOOGLE_API_KEY', 'GEMINI_API_KEY'],
+          'gemini': ['GOOGLE_API_KEY', 'GEMINI_API_KEY'],
+          'auto': ['OPENAI_API_KEY', 'ANTHROPIC_API_KEY', 'GOOGLE_API_KEY', 'GEMINI_API_KEY']
+        };
+
+        const keysToCheck = providerKeys[options.aiProvider] || providerKeys['auto'];
+
+        for (const envVar of keysToCheck) {
+          const key = process.env[envVar];
+          if (key) {
+            return key;
+          }
+        }
+
+        // Fallback to deprecated --api-key flag
+        if (options.apiKey) {
+          return options.apiKey;
+        }
+
+        return undefined;
+      };
+
+      // Warn if AI is enabled but no API key is found
+      const apiKey = options.ai ? getApiKey() : undefined;
+      if (options.ai && !apiKey && options.aiProvider !== 'local') {
+        console.warn(chalk.yellow('⚠️  Advertencia: Análisis con IA habilitado pero no se encontró API key.'));
+        console.warn(chalk.yellow('   Configure una de las siguientes variables de entorno:'));
+        console.warn(chalk.gray('   • OPENAI_API_KEY     - Para OpenAI GPT'));
+        console.warn(chalk.gray('   • ANTHROPIC_API_KEY  - Para Anthropic Claude'));
+        console.warn(chalk.gray('   • GOOGLE_API_KEY     - Para Google Gemini'));
+        console.warn(chalk.yellow('   O use --ai-provider local para modelos locales.'));
+        console.warn('');
+      }
+
       const config: ScanConfig = {
         projectPath: resolvedPath,
         outputPath: options.output,
@@ -96,8 +172,8 @@ program
         maxFileSize: parseInt(options.maxFileSize),
         language: reportLang,
         aiConfig: options.ai ? {
-          provider: options.aiProvider,
-          apiKey: options.apiKey || process.env.OPENAI_API_KEY,
+          provider: options.aiProvider as 'openai' | 'anthropic' | 'google' | 'gemini' | 'local' | 'auto',
+          apiKey: apiKey,
           model: options.aiModel || (options.aiProvider === 'local' ? defaultLocalModel : undefined),
           endpoint: options.aiEndpoint || (options.aiProvider === 'local' ? defaultLocalEndpoint : undefined)
         } : undefined
@@ -107,7 +183,7 @@ program
       const spinner = ora('Inicializando escaneo de seguridad...').start();
 
       const scanner = new SecurityScanner(config);
-      
+
       spinner.text = 'Escaneando archivos...';
       const result = await scanner.scan();
 
@@ -127,7 +203,7 @@ program
         console.log(`   🔍 Hallazgos: ${chalk.yellow(result.findings.length)}`);
         console.log(`   ⏱️  Duración: ${chalk.yellow((result.stats.duration / 1000).toFixed(2) + 's')}`);
         console.log('');
-        
+
         // Severity breakdown
         const { findingsBySeverity } = result.stats;
         console.log(chalk.bold('   Desglose por Severidad:'));
@@ -138,9 +214,20 @@ program
         console.log(`   ${chalk.blue(' INFO ')} ${findingsBySeverity.info || 0}`);
         console.log('');
 
+        // Language breakdown
+        const { filesByLanguage } = result.stats;
+        const langEntries = Object.entries(filesByLanguage).sort(([, a], [, b]) => b - a);
+        if (langEntries.length > 0) {
+          console.log(chalk.bold('   Archivos por Lenguaje:'));
+          for (const [lang, count] of langEntries) {
+            console.log(`   ${chalk.gray('•')} ${lang}: ${chalk.yellow(String(count))}`);
+          }
+          console.log('');
+        }
+
         // Risk score
-        const riskColor = result.riskScore >= 70 ? chalk.red : 
-                         result.riskScore >= 40 ? chalk.yellow : chalk.green;
+        const riskColor = result.riskScore >= 70 ? chalk.red :
+          result.riskScore >= 40 ? chalk.yellow : chalk.green;
         console.log(`   📈 Puntuación de Riesgo: ${riskColor(result.riskScore + '/100')} (${result.riskLevel.toUpperCase()})`);
 
         // Report location - ensure correct extension is shown
@@ -180,7 +267,7 @@ program
   .description('Inicializar configuración de secure-scan en el directorio actual')
   .action(() => {
     const configPath = path.join(process.cwd(), 'secure-scan.config.json');
-    
+
     if (fs.existsSync(configPath)) {
       console.log(chalk.yellow('⚠️ El archivo de configuración ya existe: secure-scan.config.json'));
       return;
@@ -189,7 +276,7 @@ program
     const defaultConfig = {
       "$schema": "https://raw.githubusercontent.com/Sobdev/secure-scan/main/schema.json",
       version: "1.0.0",
-      
+
       scan: {
         languages: [
           "javascript",
@@ -215,7 +302,7 @@ program
         maxFiles: 10000,
         followSymlinks: false
       },
-      
+
       rules: {
         enabled: true,
         categories: {
@@ -232,7 +319,7 @@ program
         customRulesPath: null,
         disabledRules: []
       },
-      
+
       ai: {
         enabled: false,
         provider: "local",
@@ -255,7 +342,7 @@ program
           timeout: 120000
         }
       },
-      
+
       output: {
         format: "html",
         path: "./secure-scan-report",
@@ -264,7 +351,7 @@ program
         groupBy: "severity",
         sortBy: "severity"
       },
-      
+
       scoring: {
         enabled: true,
         weights: {
@@ -283,14 +370,14 @@ program
           warn: 40
         }
       },
-      
+
       performance: {
         parallelism: 4,
         timeout: 300000,
         cacheEnabled: true,
         cachePath: ".secure-scan-cache"
       },
-      
+
       integrations: {
         git: {
           enabled: true,
@@ -302,7 +389,7 @@ program
           path: "./results.sarif"
         }
       },
-      
+
       logging: {
         level: "info",
         file: null,
@@ -321,12 +408,12 @@ program
   .command('rules')
   .description('Listar todas las reglas de seguridad disponibles')
   .option('-l, --language <lang>', 'Filtrar por lenguaje')
-  .action(async (options: any) => {
+  .action(async (options: RulesCommandOptions) => {
     const { getAllRules } = await import('../rules');
     let rules = getAllRules();
 
     if (options.language) {
-      rules = rules.filter(r => r.languages.includes(options.language));
+      rules = rules.filter(r => r.languages.includes(options.language as SupportedLanguage));
     }
 
     console.log(chalk.cyan('\n📋 Reglas de Seguridad Disponibles\n'));

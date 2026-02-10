@@ -13,15 +13,24 @@ export { allVulnerabilityRules, VulnerabilityRuleEngine } from './vulnerabilitie
 export * as malware from './malware';
 export { malwareRules, MalwareRuleEngine } from './malware';
 
+// Re-export secrets detection
+export * as secrets from './secrets';
+export { getSecretRules, SECRET_PATTERNS } from './secrets';
+
 import { Rule } from '../types';
 import { allVulnerabilityRules } from './vulnerabilities';
 import { malwareRules } from './malware';
+import { getSecretRules } from './secrets';
 
 /**
  * Get all rules
  */
 export function getAllRules(): Rule[] {
-  return [...allVulnerabilityRules as unknown as Rule[], ...malwareRules as unknown as Rule[]];
+  return [
+    ...allVulnerabilityRules as unknown as Rule[], 
+    ...malwareRules as unknown as Rule[],
+    ...getSecretRules()
+  ];
 }
 
 /**

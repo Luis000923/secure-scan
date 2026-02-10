@@ -34,8 +34,8 @@ export enum Severity {
  * Security standard references
  */
 export interface SecurityStandard {
-  /** Standard name (OWASP, CWE, MITRE, SANS) */
-  name: 'OWASP' | 'CWE' | 'MITRE' | 'SANS';
+  /** Standard name */
+  name: 'OWASP' | 'CWE' | 'MITRE' | 'SANS' | 'CVE' | 'CIS' | 'NSA' | 'AWS';
   /** Standard ID (e.g., CWE-79, A01:2021) */
   id: string;
   /** Standard title */
@@ -57,15 +57,21 @@ export enum ThreatType {
   CSRF = 'csrf',
   INSECURE_DESERIALIZATION = 'insecure_deserialization',
   HARDCODED_CREDENTIALS = 'hardcoded_credentials',
+  HARDCODED_SECRETS = 'hardcoded_secrets',
   PATH_TRAVERSAL = 'path_traversal',
   LDAP_INJECTION = 'ldap_injection',
   INSECURE_CRYPTO = 'insecure_crypto',
+  WEAK_CRYPTOGRAPHY = 'weak_cryptography',
   WEAK_RANDOM = 'weak_random',
   DANGEROUS_FUNCTION = 'dangerous_function',
   VULNERABLE_DEPENDENCY = 'vulnerable_dependency',
   INFORMATION_DISCLOSURE = 'information_disclosure',
   BROKEN_ACCESS_CONTROL = 'broken_access_control',
   SECURITY_MISCONFIGURATION = 'security_misconfiguration',
+  XXE = 'xxe',
+  SSRF = 'ssrf',
+  INJECTION = 'injection',
+  VULNERABILITY = 'vulnerability',
   
   // Malware
   BACKDOOR = 'backdoor',
@@ -86,7 +92,8 @@ export enum FindingCategory {
   VULNERABILITY = 'vulnerability',
   MALWARE = 'malware',
   CODE_SMELL = 'code_smell',
-  BEST_PRACTICE = 'best_practice'
+  BEST_PRACTICE = 'best_practice',
+  SECRET = 'secret'
 }
 
 /**
@@ -128,6 +135,8 @@ export interface CodeSnippet {
 export interface Finding {
   /** Unique finding ID */
   id: string;
+  /** Rule ID that generated this finding */
+  ruleId?: string;
   /** Finding title */
   title: string;
   /** Detailed description */
@@ -226,6 +235,10 @@ export interface ScanResult {
   scannedFiles: ScannedFile[];
   /** Configuration used */
   config: ScanConfig;
+  /** Scan start time (ISO string for SARIF compatibility) */
+  scanStartTime?: string;
+  /** Scan end time (ISO string for SARIF compatibility) */
+  scanEndTime?: string;
 }
 
 /**

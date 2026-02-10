@@ -19,6 +19,50 @@ interface AIAnalysisResult {
 }
 
 /**
+ * Raw finding structure returned by AI providers.
+ * Used to validate and convert AI responses before creating typed Finding objects.
+ */
+interface RawAIFinding {
+  title?: string;
+  severity?: string;
+  type?: string;
+  line?: number | string;
+  description?: string;
+  remediation?: string;
+}
+
+/**
+ * Google AI API response structure
+ */
+interface GoogleAIResponse {
+  candidates?: Array<{
+    content?: {
+      parts?: Array<{
+        text?: string;
+      }>;
+    };
+  }>;
+  error?: {
+    code?: number;
+    message?: string;
+  };
+}
+
+/**
+ * Ollama performance options
+ */
+interface OllamaOptions {
+  num_predict: number;
+  temperature: number;
+  num_gpu?: number;
+  num_thread?: number;
+  num_ctx?: number;
+  num_batch?: number;
+  use_mmap?: boolean;
+  use_mlock?: boolean;
+}
+
+/**
  * Detected AI Provider
  */
 type DetectedProvider = 'openai' | 'anthropic' | 'google' | 'local';
@@ -31,6 +75,8 @@ export class AIAnalyzer {
   private config: AIConfig;
   private initialized: boolean = false;
   private detectedProvider: DetectedProvider = 'openai';
+  private static readonly MAX_RETRIES = 3;
+  private static readonly BASE_RETRY_DELAY_MS = 1000;
 
   constructor(config: AIConfig) {
     this.config = config;
@@ -44,28 +90,28 @@ export class AIAnalyzer {
   private detectProvider(): DetectedProvider {
     const apiKey = this.config.apiKey || '';
     const provider = this.config.provider;
-    
+
     // If explicitly set to local, use local
     if (provider === 'local') {
       return 'local';
     }
-    
+
     // Auto-detect from API key format
     if (apiKey.startsWith('sk-ant-') || apiKey.startsWith('sk-ant')) {
       logger.debug('🔍 Detected Anthropic API key');
       return 'anthropic';
     }
-    
+
     if (apiKey.startsWith('AIzaSy') || apiKey.startsWith('AIza')) {
       logger.debug('🔍 Detected Google AI API key');
       return 'google';
     }
-    
+
     if (apiKey.startsWith('sk-') || apiKey.startsWith('sk-proj-')) {
       logger.debug('🔍 Detected OpenAI API key');
       return 'openai';
     }
-    
+
     // Fallback to configured provider or openai
     if (provider === 'google' || provider === 'gemini') {
       return 'google';
@@ -76,7 +122,7 @@ export class AIAnalyzer {
     if (provider === 'openai') {
       return 'openai';
     }
-    
+
     // Default to openai if we can't detect
     return 'openai';
   }
@@ -91,9 +137,9 @@ export class AIAnalyzer {
     }
 
     const providerName = this.detectedProvider === 'google' ? 'Google AI (Gemini)' :
-                         this.detectedProvider === 'anthropic' ? 'Anthropic (Claude)' :
-                         this.detectedProvider === 'openai' ? 'OpenAI (GPT)' : 'Local';
-    
+      this.detectedProvider === 'anthropic' ? 'Anthropic (Claude)' :
+        this.detectedProvider === 'openai' ? 'OpenAI (GPT)' : 'Local';
+
     logger.info(`🤖 Initializing AI analyzer with ${providerName}...`);
     this.initialized = true;
   }
@@ -132,7 +178,7 @@ export class AIAnalyzer {
     if (this.config.model) {
       return this.config.model;
     }
-    
+
     // Default models per provider
     switch (this.detectedProvider) {
       case 'openai':
@@ -152,14 +198,14 @@ export class AIAnalyzer {
   private async analyzeWithOpenAI(file: ScannedFile): Promise<AIAnalysisResult> {
     // Dynamic import to avoid issues if package not installed
     const OpenAI = (await import('openai')).default;
-    
+
     const client = new OpenAI({
       apiKey: this.config.apiKey
     });
 
     const prompt = this.buildAnalysisPrompt(file);
     const model = this.getModel();
-    
+
     logger.debug(`Using OpenAI model: ${model}`);
 
     try {
@@ -185,13 +231,15 @@ export class AIAnalyzer {
       }
 
       return this.parseAIResponse(content, file);
-    } catch (error: any) {
-      if (error?.status === 429) {
+    } catch (error: unknown) {
+      const apiError = error as { status?: number; message?: string };
+      if (apiError?.status === 429) {
         logger.warn('⚠️ OpenAI: Cuota excedida. Verifica tu plan en https://platform.openai.com/account/billing');
-      } else if (error?.status === 401) {
+      } else if (apiError?.status === 401) {
         logger.warn('⚠️ OpenAI: API key inválida');
       } else {
-        logger.debug(`OpenAI error: ${error.message || error}`);
+        const message = apiError?.message || String(error);
+        logger.debug(`OpenAI error: ${message}`);
       }
       return { findings: [] };
     }
@@ -203,14 +251,14 @@ export class AIAnalyzer {
   private async analyzeWithAnthropic(file: ScannedFile): Promise<AIAnalysisResult> {
     try {
       const Anthropic = (await import('@anthropic-ai/sdk')).default;
-      
+
       const client = new Anthropic({
         apiKey: this.config.apiKey
       });
 
       const prompt = this.buildAnalysisPrompt(file);
       const model = this.getModel();
-      
+
       logger.debug(`Using Anthropic model: ${model}`);
 
       const response = await client.messages.create({
@@ -244,20 +292,20 @@ export class AIAnalyzer {
     try {
       const prompt = this.buildAnalysisPrompt(file);
       const model = this.getModel();
-      
+
       logger.debug(`Using Google AI model: ${model}`);
 
       // Use Google AI REST API directly
       const apiKey = this.config.apiKey;
-      
+
       // Try v1 API first, fallback to v1beta
       const apis = [
         `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`,
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
       ];
-      
-      let lastError: any = null;
-      
+
+      let lastError: GoogleAIResponse['error'] | Error | null = null;
+
       for (const url of apis) {
         try {
           const response = await fetch(url, {
@@ -282,39 +330,40 @@ export class AIAnalyzer {
             })
           });
 
-          const data = await response.json() as any;
-          
+          const data = await response.json() as GoogleAIResponse;
+
           if (!response.ok) {
             lastError = data.error;
             continue; // Try next API version
           }
-          
+
           const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          
+
           if (!content) {
             return { findings: [] };
           }
 
           return this.parseAIResponse(content, file);
         } catch (e) {
-          lastError = e;
+          lastError = e as Error;
           continue;
         }
       }
-      
+
       // If all APIs failed, show helpful message
       if (lastError) {
-        if (lastError.code === 404) {
+        const errorCode = (lastError as GoogleAIResponse['error'])?.code;
+        if (errorCode === 404) {
           logger.warn(`⚠️ Google AI: Modelo "${model}" no disponible. Intenta con: gemini-pro`);
-        } else if (lastError.code === 403) {
+        } else if (errorCode === 403) {
           logger.warn('⚠️ Google AI: API key sin permisos. Habilita la API en Google Cloud Console.');
-        } else if (lastError.code === 429) {
+        } else if (errorCode === 429) {
           logger.warn('⚠️ Google AI: Cuota excedida. Espera un momento o verifica tu plan.');
         } else {
           logger.debug(`Google AI error: ${JSON.stringify(lastError)}`);
         }
       }
-      
+
       return { findings: [] };
     } catch (error) {
       logger.debug(`Google AI analysis error: ${error}`);
@@ -350,9 +399,9 @@ export class AIAnalyzer {
 
     try {
       logger.debug(`🤖 Usando modelo local: ${model}`);
-      
+
       // Build Ollama options with performance tuning
-      const ollamaOptions: Record<string, any> = {
+      const ollamaOptions: OllamaOptions = {
         num_predict: this.config.maxTokens || 2000,
         temperature: this.config.temperature || 0.1,
       };
@@ -406,7 +455,7 @@ export class AIAnalyzer {
 
       const data = await response.json() as { response?: string; content?: string; message?: { content?: string } };
       const content = data.response || data.content || data.message?.content || '';
-      
+
       if (!content) {
         logger.debug('El modelo local no devolvió respuesta');
         return { findings: [] };
@@ -421,14 +470,15 @@ export class AIAnalyzer {
       }
 
       return result;
-    } catch (error: any) {
-      if (error.name === 'AbortError') {
+    } catch (error: unknown) {
+      const err = error as { name?: string; code?: string; message?: string };
+      if (err.name === 'AbortError') {
         logger.warn(`⚠️ Timeout analizando ${file.relativePath}`);
-      } else if (error.code === 'ECONNREFUSED') {
+      } else if (err.code === 'ECONNREFUSED') {
         logger.warn('⚠️ No se puede conectar al servidor local. ¿Está Ollama ejecutándose?');
         logger.info('💡 Inicia Ollama con: ollama serve');
       } else {
-        logger.debug(`Local AI error: ${error.message || error}`);
+        logger.debug(`Local AI error: ${err.message || String(error)}`);
       }
       return { findings: [] };
     }
@@ -510,7 +560,7 @@ Be precise and avoid false positives. Focus on real security issues.`;
   private buildAnalysisPrompt(file: ScannedFile): string {
     // Truncate large files
     const maxLength = 8000;
-    const content = file.content.length > maxLength 
+    const content = file.content.length > maxLength
       ? file.content.substring(0, maxLength) + '\n... (truncated)'
       : file.content;
 
@@ -559,16 +609,17 @@ Identify all security vulnerabilities and malicious code patterns.`;
   }
 
   /**
-   * Convert AI finding to Finding type
+   * Convert raw AI finding to typed Finding object.
+   * Validates required fields before conversion.
    */
-  private convertToFinding(item: any, file: ScannedFile): Finding | null {
+  private convertToFinding(item: RawAIFinding, file: ScannedFile): Finding | null {
     if (!item.title || !item.severity) {
       return null;
     }
 
     const severity = this.parseSeverity(item.severity);
-    const threatType = this.parseThreatType(item.type);
-    const lineNum = parseInt(item.line) || 1;
+    const threatType = this.parseThreatType(item.type || '');
+    const lineNum = parseInt(String(item.line)) || 1;
 
     // Extract code context
     const lines = file.content.split('\n');
@@ -621,7 +672,7 @@ Identify all security vulnerabilities and malicious code patterns.`;
    */
   private parseThreatType(type: string): ThreatType {
     const lower = (type || '').toLowerCase().replace(/[_-]/g, '');
-    
+
     const typeMap: Record<string, ThreatType> = {
       'sqlinjection': ThreatType.SQL_INJECTION,
       'sqli': ThreatType.SQL_INJECTION,

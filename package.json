@@ -1,6 +1,6 @@
 {
   "name": "secure-scan",
-  "version": "1.2.5",
+  "version": "1.3.1",
   "description": "Herramienta SAST (Análisis Estático de Seguridad) para detectar vulnerabilidades y código malicioso.",
   "main": "dist/index.js",
   "bin": {
@@ -20,9 +20,12 @@
     "dev": "ts-node src/cli/index.ts",
     "test": "jest",
     "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts",
-    "clean": "rimraf dist",
-    "prepare": "npm run build"
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "clean": "rimraf dist coverage",
+    "prepare": "npm run build",
+    "cache:clear": "rimraf .secure-scan-cache.json"
   },
   "keywords": [
     "security",
@@ -33,6 +36,8 @@
     "code-analysis",
     "owasp",
     "cwe",
+    "sarif",
+    "secrets-detection",
     "profesional"
   ],
   "author": "Luis000923",
@@ -54,6 +59,7 @@
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
+    "@types/jest": "^29.5.11",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.10.0",
     "@typescript-eslint/eslint-plugin": "^6.13.0",
