@@ -97,6 +97,22 @@ export class JavaAnalyzer extends BaseAnalyzer {
         threatType: ThreatType.SQL_INJECTION
       },
       {
+        // Cualquier receptor (stmt, statement, conn.createStatement()...) con concatenación en la llamada
+        pattern: /\.\s*execute(?:Query|Update)\s*\([^)]*\+/g,
+        title: 'Inyección SQL Potencial',
+        description: 'Consulta SQL construida con concatenación de cadenas en la llamada a execute. Use PreparedStatement con parámetros.',
+        severity: Severity.CRITICAL,
+        threatType: ThreatType.SQL_INJECTION
+      },
+      {
+        // Consulta armada por concatenación en una variable y ejecutada después
+        pattern: /String\s+\w+\s*=\s*"[^"\n]*\b(?:SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)\b[^"\n]*"\s*\+/gi,
+        title: 'Inyección SQL Potencial',
+        description: 'Consulta SQL construida concatenando valores a una cadena. Si el valor proviene del usuario es explotable; use PreparedStatement con parámetros.',
+        severity: Severity.HIGH,
+        threatType: ThreatType.SQL_INJECTION
+      },
+      {
         pattern: /DocumentBuilderFactory\.newInstance\s*\(\s*\).*?(?!setFeature.*disallow-doctype-decl)/gs,
         title: 'Vulnerabilidad XXE Potencial',
         description: 'El analizador XML puede ser vulnerable a XXE si los DTD no están deshabilitados explícitamente.',
