@@ -322,7 +322,7 @@ export class InstalledDependenciesScanner {
       let version = 'unknown';
       let metadata: InstalledPackageMetadata = {};
       let hasPostInstallScripts = false;
-      let postInstallScripts: PostInstallScript[] = [];
+      const postInstallScripts: PostInstallScript[] = [];
 
       // Handle scoped packages
       const parentDir = path.basename(path.dirname(packageDir));

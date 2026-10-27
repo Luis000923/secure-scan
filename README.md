@@ -1,5 +1,6 @@
 # 🔐 Secure-Scan
 
+[![CI](https://github.com/Luis000923/secure-scan/actions/workflows/ci.yml/badge.svg)](https://github.com/Luis000923/secure-scan/actions/workflows/ci.yml)
 [![Licencia: MIT](https://img.shields.io/badge/Licencia-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Versión Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
 [![Idioma](https://img.shields.io/badge/Idioma-Español%20%7C%20English-blue.svg)](#-idiomas)
@@ -34,7 +35,7 @@ npm uninstall -g secure-scan
 
 ### Opción 2: Clonar el repositorio
 ```bash
-git clone https://github.com/your-org/secure-scan.git
+git clone https://github.com/Luis000923/secure-scan.git
 cd secure-scan
 ```
 
@@ -324,9 +325,3 @@ MIT License - Ver [LICENSE](LICENSE)
 ---
 
 **Desarrollado con ❤️ para la comunidad de seguridad**
-## ATT: Luis000923
-## 🔐 Secure-Scan
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org)
-[![Language](https://img.shields.io/badge/Language-Spanish%20%7C%20English-blue.svg)](#-languages)

@@ -42,6 +42,7 @@ interface RulesCommandOptions {
 }
 
 // Información del paquete
+// eslint-disable-next-line @typescript-eslint/no-var-requires
 const packageJson = require('../../package.json');
 
 // Crear programa CLI

@@ -63,7 +63,7 @@ export class EnhancedCVEDatabase {
   ): Promise<VulnLookupResult> {
     const vulnerabilities: CVEInfo[] = [];
     let source: 'osv' | 'static' | 'combined' = 'static';
-    let fromCache = false;
+    const fromCache = false;
 
     // Try OSV API first if enabled
     if (this.config.useOnlineAPI) {

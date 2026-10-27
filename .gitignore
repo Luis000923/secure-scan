@@ -10,6 +10,7 @@ build/
 *.d.ts
 *.js.map
 !src/**/*.js
+!jest.config.js
 !test-samples/**/*.js
 
 # IDE

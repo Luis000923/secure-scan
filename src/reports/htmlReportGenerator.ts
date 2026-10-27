@@ -18,7 +18,7 @@ import { getAllAnalyzers } from '../analyzers';
  */
 export class HtmlReportGenerator implements ReportGenerator {
   name = 'HTML Report Generator';
-  format: 'html' = 'html';
+  readonly format = 'html' as const;
   private language: Language;
   private t: Translations;
 
